@@ -4,17 +4,16 @@ from tensorflow import keras
 import tensorflow_probability as tfp
 
 
-def rnn_regression_model(alphabet_size, n_timesteps=None, dropout=0.5, mask_value=None):
-    if mask_value is None:
-        mask_value = np.array([0] * alphabet_size, dtype=np.float32)
+def rnn_regression_model(alphabet_size, n_timesteps=None, n_hidden=100, dropout=0.5):
+    mask_value = np.array([0] * alphabet_size, dtype=np.float32)
 
     inputs = keras.Input(shape=(n_timesteps, alphabet_size), name='sequence')
 
     x = keras.layers.Masking(mask_value=mask_value)(inputs)
 
-    x = keras.layers.GRU(100, recurrent_dropout=dropout)(x)
+    x = keras.layers.GRU(n_hidden, recurrent_dropout=dropout)(x)
 
-    x = keras.layers.Dense(100, activation='relu')(x)
+    x = keras.layers.Dense(n_hidden, activation='relu')(x)
     x = keras.layers.Dropout(dropout)(x)
 
     x = keras.layers.Dense(2)(x)
