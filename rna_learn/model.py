@@ -13,12 +13,15 @@ def rnn_regression_model(alphabet_size, n_timesteps=None, n_hidden=100, dropout=
 
     x = keras.layers.GRU(n_hidden, recurrent_dropout=dropout)(x)
 
-    x = keras.layers.Dense(n_hidden, activation='relu')(x)
+    x = keras.layers.Dense(n_hidden, activation='relu', name='logits')(x)
     x = keras.layers.Dropout(dropout)(x)
 
-    x = keras.layers.Dense(2)(x)
+    x_loc = keras.layers.Dense(1, name='loc')(x)
+    x_scale = keras.layers.Dense(1, activation='softplus', name='scale')(x)
 
-    outputs = tfp.layers.IndependentNormal(1)(x)
+    x_normal = keras.layers.concatenate([x_loc, x_scale], axis=1)
+
+    outputs = tfp.layers.IndependentNormal(1)(x_normal)
 
     return keras.Model(inputs=inputs, outputs=outputs)
 
