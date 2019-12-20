@@ -33,3 +33,11 @@ def one_hot_encoding(x, alphabet):
         ).tolist()
         output.append(x_one_hot)
     return output
+
+
+def normalize(y, mean, std):
+    return (y - mean) / std
+
+
+def denormalize(y_norm, mean, std):
+    return (y_norm * std) + mean

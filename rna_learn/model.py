@@ -11,7 +11,7 @@ def rnn_regression_model(alphabet_size, n_timesteps=None, n_hidden=100, dropout=
 
     x = keras.layers.Masking(mask_value=mask_value)(inputs)
 
-    x = keras.layers.GRU(n_hidden, recurrent_dropout=dropout)(x)
+    x = keras.layers.LSTM(n_hidden, recurrent_dropout=dropout)(x)
 
     x = keras.layers.Dense(n_hidden, activation='relu', name='logits')(x)
     x = keras.layers.Dropout(dropout)(x)
@@ -30,5 +30,4 @@ def compile_model(model, learning_rate):
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
         loss=lambda y, normal_dist: -normal_dist.log_prob(y),
-        metrics=[keras.losses.MAE],
     )
