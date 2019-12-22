@@ -73,6 +73,18 @@ def make_dataset_balanced(metadata, cat_name='rna.type', n_entries_per_class=100
     )
 
 
+def split_train_test_set(x, y, test_ratio=0.2):
+    n_seq = len(x)
+    test_idx = np.random.choice(range(n_seq), size=int(test_ratio * n_seq), replace=False)
+    test_idx_set = set(test_idx.tolist())
+    train_idx = np.array([idx for idx in range(n_seq) if idx not in test_idx_set])
+
+    x_test, y_test = x[test_idx], y[test_idx]
+    x_train, y_train = x[train_idx], y[train_idx]
+
+    return x_train, y_train, x_test, y_test
+
+
 def normalize(y, mean, std):
     return (y - mean) / std
 

@@ -17,6 +17,7 @@ from .transform import (
     normalize, denormalize,
     make_dataset_balanced,
     one_hot_encode_classes,
+    split_train_test_set,
 )
 from .load import load_rna_structure_dataset
 
@@ -72,15 +73,10 @@ def regression(alphabet, learning_rate, batch_size, n_epochs):
     y = metadata['temp'].values.astype(np.float32)
 
     logger.info('Split train and test set')
-    n_seq = len(sequences)
-    test_idx = np.random.choice(range(n_seq), size=int(0.2 * n_seq), replace=False)
-    test_idx_set = set(test_idx.tolist())
-    train_idx = np.array([idx for idx in range(n_seq) if idx not in test_idx_set])
+    logger.info('Split train and test set')
+    x_train, y_train, x_test, y_test = split_train_test_set(x, y, test_ratio=0.2)
 
     mean, std = np.mean(y), np.std(y)
-
-    x_test, y_test = x[test_idx], y[test_idx]
-    x_train, y_train = x[train_idx], y[train_idx]
 
     y_test_norm = normalize(y_test, mean, std)
     y_train_norm = normalize(y_train, mean, std)
@@ -124,13 +120,7 @@ def classification(alphabet, learning_rate, batch_size, n_epochs):
     x = sequence_embedding(sequences, alphabet)
 
     logger.info('Split train and test set')
-    n_seq = len(sequences)
-    test_idx = np.random.choice(range(n_seq), size=int(0.2 * n_seq), replace=False)
-    test_idx_set = set(test_idx.tolist())
-    train_idx = np.array([idx for idx in range(n_seq) if idx not in test_idx_set])
-
-    x_test, y_test = x[test_idx], y[test_idx]
-    x_train, y_train = x[train_idx], y[train_idx]
+    x_train, y_train, x_test, y_test = split_train_test_set(x, y, test_ratio=0.2)
 
     logger.info('Training')
     model.fit(
