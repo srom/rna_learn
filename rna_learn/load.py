@@ -5,10 +5,7 @@ import pandas as pd
 import numpy as np
 
 
-def load_rna_structure_dataset(metadata_path, sequence_folder_path):
-    metadata = pd.read_csv(metadata_path, delimiter='\t')
-    metadata['category'] = metadata['temp.cat']
-
+def load_rna_structure_dataset(metadata, sequence_folder_path):
     sequences = []
     for tpl in metadata.itertuples():
         rna_type, prot_type = getattr(tpl, 'category').split(' ')
@@ -30,7 +27,7 @@ def load_rna_structure_dataset(metadata_path, sequence_folder_path):
                content
             )
             content = content.strip()
-            
+
             sequences.append(content)
 
-    return sequences, metadata
+    return sequences
