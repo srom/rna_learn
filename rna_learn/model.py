@@ -12,9 +12,11 @@ def rnn_regression_model(alphabet_size, n_timesteps=None, n_hidden=100, dropout=
     x = keras.layers.Masking(mask_value=mask_value)(inputs)
 
     for i in range(n_lstm):
+        not_last = i + 1 != n_lstm
         x = keras.layers.LSTM(
             n_hidden, 
-            return_sequences=i + 1 != n_lstm,
+            recurrent_dropout=dropout,
+            return_sequences=not_last,
         )(x)
 
     x = keras.layers.Dense(n_hidden, activation='relu', name='logits')(x)
@@ -45,11 +47,10 @@ def rnn_classification_model(
     x = keras.layers.Masking(mask_value=mask_value)(inputs)
 
     for i in range(n_lstm):
-        not_first = i > 0
         not_last = i + 1 != n_lstm
         x = keras.layers.LSTM(
             n_hidden, 
-            dropout=dropout if not_first else 0.,
+            recurrent_dropout=dropout,
             return_sequences=not_last,
         )(x)
 

@@ -43,8 +43,11 @@ def one_hot_encode_classes(y, classes):
     )
 
 
-def make_dataset_balanced(metadata, cat_name='rna.type', n_entries_per_class=1000):
+def make_dataset_balanced(metadata, cat_name='rna.type', output_col=None, n_entries_per_class=1000):
     classes = sorted(metadata[cat_name].unique().tolist())
+
+    if output_col is None:
+        output_col = cat_name
 
     output_data = []
     output_metadata = []
@@ -64,7 +67,7 @@ def make_dataset_balanced(metadata, cat_name='rna.type', n_entries_per_class=100
 
         for idx in sorted_indices:
             m = metadata.loc[idx]
-            output_data.append(m[cat_name])
+            output_data.append(m[output_col])
             output_metadata.append(m.values)
 
     return (
@@ -73,7 +76,7 @@ def make_dataset_balanced(metadata, cat_name='rna.type', n_entries_per_class=100
     )
 
 
-def split_train_test_set(x, y, test_ratio=0.2):
+def split_train_test_set(x, y, test_ratio=0.2, return_indices=False):
     n_seq = len(x)
     test_idx = np.random.choice(range(n_seq), size=int(test_ratio * n_seq), replace=False)
     test_idx_set = set(test_idx.tolist())
@@ -82,7 +85,10 @@ def split_train_test_set(x, y, test_ratio=0.2):
     x_test, y_test = x[test_idx], y[test_idx]
     x_train, y_train = x[train_idx], y[train_idx]
 
-    return x_train, y_train, x_test, y_test
+    if not return_indices:
+        return x_train, y_train, x_test, y_test
+    else:
+        return x_train, y_train, x_test, y_test, train_idx, test_idx
 
 
 def normalize(y, mean, std):

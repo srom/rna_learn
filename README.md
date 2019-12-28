@@ -15,7 +15,7 @@ Dataset: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DV
 Extract RNA 2D structure using the RNAfold package of [ViennaRNA](https://www.tbi.univie.ac.at/RNA/).
 
 ```bash
-./preprocessing/generate_mfe_structure.sh "data/seq/mrna/**/*.fasta"
+./preprocessing/generate_mfe_structure.sh "data/rna_temp/seq/mrna/**/*.fasta"
 ```
 
 The script iterates through files matching the pattern provided and creates one text file in the same location with extension `.structure.txt`.

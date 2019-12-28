@@ -31,3 +31,27 @@ def load_rna_structure_dataset(metadata, sequence_folder_path):
             sequences.append(content)
 
     return sequences
+
+
+def load_rna_nucleotides_dataset(metadata, sequence_folder_path):
+    sequences = []
+    for tpl in metadata.itertuples():
+        rna_type, prot_type = getattr(tpl, 'category').split(' ')
+        filename = tpl.sp.replace(' ', '_') + '.fasta'
+
+        path = os.path.join(
+            sequence_folder_path, 
+            rna_type, 
+            prot_type,
+            filename,
+        )
+        with open(path) as f:
+            while True:
+                content = f.readline()
+                if not content.startswith('>'):
+                    break
+
+            content = content.strip()
+            sequences.append(content)
+
+    return sequences
