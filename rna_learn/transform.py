@@ -43,11 +43,27 @@ def one_hot_encode_classes(y, classes):
     )
 
 
-def make_dataset_balanced(metadata, cat_name='rna.type', output_col=None, n_entries_per_class=1000):
-    classes = sorted(metadata[cat_name].unique().tolist())
+def make_dataset_balanced(
+    metadata, 
+    cat_name='rna.type', 
+    output_col=None, 
+    n_entries_per_class=None,
+    classes=None,
+):
+    if classes is None:
+        classes = sorted(metadata[cat_name].unique().tolist())
 
     if output_col is None:
         output_col = cat_name
+
+    if n_entries_per_class is None:
+        candidates = []
+        for class_ in classes:
+            metadata_slice = metadata[metadata[cat_name] == class_]
+            n_entries = len(metadata_slice)
+            candidates.append(n_entries)
+
+        n_entries_per_class = min(candidates)
 
     output_data = []
     output_metadata = []

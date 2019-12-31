@@ -67,7 +67,7 @@ def regression(rna_type, alphabet, learning_rate, batch_size, n_epochs, resume, 
     metadata_path = f'data/tab/{rna_type}.tab'
     sequences_folder = 'data/seq/'
 
-    output_folder = os.path.join(os.getcwd(), 'saved_models', f'seed_{seed}')
+    output_folder = os.path.join(os.getcwd(), 'saved_models_rnatemp', f'seed_{seed}')
     output_path = os.path.join(output_folder, f'{rna_type}_regression.h5')
 
     try:
@@ -93,11 +93,9 @@ def regression(rna_type, alphabet, learning_rate, batch_size, n_epochs, resume, 
     metadata = pd.read_csv(metadata_path, delimiter='\t')
     metadata['category'] = metadata['temp.cat']
 
-    n_entries_per_class = 153
     y, metadata = make_dataset_balanced(
         metadata, 
         output_col='temp', 
-        n_entries_per_class=n_entries_per_class,
     )
     y = y.astype(np.float32)
 
@@ -154,7 +152,7 @@ def classification(rna_type, alphabet, learning_rate, batch_size, n_epochs, resu
     metadata_path = f'data/tab/{rna_type}.tab'
     sequences_folder = 'data/seq/'
 
-    output_folder = os.path.join(os.getcwd(), 'saved_models', f'seed_{seed}')
+    output_folder = os.path.join(os.getcwd(), 'saved_models_rnatemp', f'seed_{seed}')
     output_path = os.path.join(output_folder, f'{rna_type}_classification.h5')
     try:
         os.makedirs(output_folder)
@@ -180,7 +178,7 @@ def classification(rna_type, alphabet, learning_rate, batch_size, n_epochs, resu
     metadata['category'] = metadata['temp.cat']
 
     n_entries_per_class = 153
-    y_str, metadata = make_dataset_balanced(metadata, n_entries_per_class=n_entries_per_class)
+    y_str, metadata = make_dataset_balanced(metadata)
     y = one_hot_encode_classes(y_str, classes)
     
     if 'A' in alphabet:
