@@ -5,4 +5,5 @@ tensorflow>=2
 tensorflow-probability>=0.8
 seaborn
 biopython
+gffutils
 jupyter

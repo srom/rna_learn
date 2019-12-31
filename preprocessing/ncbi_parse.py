@@ -15,7 +15,7 @@ import requests
 
 
 SPECIES_CSV = 'data/bac_dive/species.csv'
-OUTPUT_FOLDER = 'data/ncbi/'
+OUTPUT_FOLDER = 'data/ncbi/raw/'
 
 
 logger = logging.getLogger(__name__)
