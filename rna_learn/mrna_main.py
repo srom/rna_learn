@@ -128,16 +128,36 @@ def run(run_id, learning_type, learning_rate, batch_size, n_epochs, resume):
                 update_freq='epoch',
                 embeddings_freq=0,
             ),
+            SaveModelCallback(
+                model_path=model_path,
+                metadata_path=metadata_path,
+                metadata=metadata,
+            ),
         ],
     )
 
-    model.save(model_path)
-    metadata['n_epochs'] = epochs
-    with open(metadata_path, 'w') as f:
-        json.dump(metadata, f)
 
-    logger.info(f'Model saved to {model_path}')
-    logger.info(f'Metdata saved to {metadata_path}')
+class SaveModelCallback(tf.keras.callbacks.Callback):
+
+    def __init__(self, model_path, metadata_path, metadata, monitor='val_loss'):
+        self.monitor = monitor
+        self.model_path = model_path
+        self.metadata_path = metadata_path
+        self.metadata = metadata
+        self.best_loss = metadata.get(self.monitor, np.inf)
+
+    def on_epoch_end(self, epoch, logs):
+        val_loss = logs[self.monitor]
+
+        if val_loss < self.best_loss:
+            self.model.save(self.model_path)
+
+            self.metadata['n_epochs'] = epoch
+            self.metadata[self.monitor] = val_loss
+            with open(self.metadata_path, 'w') as f:
+                json.dump(self.metadata, f)
+
+            self.best_loss = val_loss
 
 
 def generate_random_run_id():
