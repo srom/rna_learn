@@ -3,6 +3,7 @@ import os
 import logging
 import string
 import sys
+import json
 
 import numpy as np
 import pandas as pd
@@ -139,8 +140,16 @@ def run(run_id, learning_type, learning_rate, batch_size, n_epochs, resume):
 
 class SaveModelCallback(tf.keras.callbacks.Callback):
 
-    def __init__(self, model_path, metadata_path, metadata, monitor='val_loss'):
+    def __init__(
+        self, 
+        model_path, 
+        metadata_path, 
+        metadata, 
+        monitor='val_loss',
+        metrics=('val_accuracy',),
+    ):
         self.monitor = monitor
+        self.metrics = metrics
         self.model_path = model_path
         self.metadata_path = metadata_path
         self.metadata = metadata
@@ -152,8 +161,13 @@ class SaveModelCallback(tf.keras.callbacks.Callback):
         if val_loss < self.best_loss:
             self.model.save(self.model_path)
 
-            self.metadata['n_epochs'] = epoch
+            self.metadata['n_epochs'] = epoch + 1
             self.metadata[self.monitor] = val_loss
+
+            for metric in self.metrics or []:
+                if metric in logs:
+                    self.metadata[metric] = float(logs[metric])
+
             with open(self.metadata_path, 'w') as f:
                 json.dump(self.metadata, f)
 

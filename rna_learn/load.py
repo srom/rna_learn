@@ -1,5 +1,6 @@
 import os
 import re
+import json
 
 import pandas as pd
 import numpy as np
@@ -84,7 +85,7 @@ def load_mrna_model(run_id, learning_type, learning_rate, model_path, metadata_p
             raise ValueError(f'Metadata file does not exist: {metadata_path}')
 
         with open(metadata_path, 'r') as f:
-            metadata = jons.load(f)
+            metadata = json.load(f)
 
         n_lstm = metadata['n_lstm']
         alphabet = metadata['alphabet']
