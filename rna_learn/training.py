@@ -82,4 +82,4 @@ def train_conv1d_with_hyperparameters(
     loss = metrics[0]
     elapsed = time.time() - start
 
-    return loss, elapsed
+    return loss, elapsed, model

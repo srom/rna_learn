@@ -28,7 +28,8 @@ def main():
     run_id = generate_random_run_id()
 
     output_dir = os.path.join(os.getcwd(), f'hyperparameters/{run_id}')
-    path_output_best = os.path.join(output_dir, 'best.json')
+    path_model = os.path.join(output_dir, 'best_model.h5')
+    path_output_best = os.path.join(output_dir, 'best_hyperparameters.json')
     path_trace = os.path.join(output_dir, 'trace.json')
 
     try:
@@ -38,10 +39,10 @@ def main():
 
     logger.info(f'Run ID: {run_id}')
 
-    gaussian_process_optimisation(n_iterations, path_output_best, path_trace)
+    gaussian_process_optimisation(n_iterations, path_model, path_output_best, path_trace)
 
 
-def gaussian_process_optimisation(n_iter, path_output_best, path_trace):
+def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_trace):
     make_float = lambda x: float(x)
     round_to_int = lambda x: int(round(x))
 
@@ -122,13 +123,17 @@ def gaussian_process_optimisation(n_iter, path_output_best, path_trace):
     logger.info('Initializing with first two hyperparameters set')
     Y_init = []
     T_init = []
+    best_loss = np.inf
+    best_idx = None
     for i, x in enumerate(X_init):
         logger.info(f'Initialization {i+1}')
-        loss, elapsed = f(x)
+        loss, elapsed, model = f(x)
         Y_init.append(loss)
         T_init.append(elapsed)
+        if loss < best_loss:
+            model.save(model_path)
+            best_idx = i
 
-    best_idx = np.argmin(Y_init)
     best_x = X_init[best_idx]
     best_loss = Y_init[best_idx]
     elapsed = T_init[best_idx]
@@ -157,7 +162,7 @@ def gaussian_process_optimisation(n_iter, path_output_best, path_trace):
 
         x_next, ei = propose_location(acq_fn, X_sample, Y_sample, gpr, gpr_s, bounds)
 
-        loss, elapsed = f(x_next)
+        loss, elapsed, model = f(x_next)
 
         trace.append({
             'x': x_next,
@@ -177,6 +182,7 @@ def gaussian_process_optimisation(n_iter, path_output_best, path_trace):
                 optimization_rules,
                 path_output_best,
             )
+            model.save(model_path)
 
         X_next = x_next[np.newaxis, ...]
         Y_next = np.array([loss])[..., np.newaxis]
