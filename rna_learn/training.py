@@ -78,9 +78,8 @@ def train_conv1d_with_hyperparameters(
         epochs=n_epochs,
         verbose=verbose,
     )
-    metrics = model.evaluate(x_test, y_test, verbose=verbose)
+    _, accuracy = model.evaluate(x_test, y_test, verbose=verbose)
 
-    loss = metrics[0]
     elapsed = time.time() - start
 
-    return loss, elapsed, model
+    return accuracy, elapsed, model
