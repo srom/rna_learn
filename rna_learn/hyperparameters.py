@@ -124,27 +124,22 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
     Y_init = []
     T_init = []
     best_loss = np.inf
-    best_idx = None
     for i, x in enumerate(X_init):
         logger.info(f'Initialization {i+1}')
         loss, elapsed, model = f(x)
         Y_init.append(loss)
         T_init.append(elapsed)
         if loss < best_loss:
+            best_loss = loss
+            store_best_params(
+                0,
+                x, 
+                best_loss, 
+                elapsed, 
+                optimization_rules,
+                path_output_best,
+            )
             model.save(model_path)
-            best_idx = i
-
-    best_x = X_init[best_idx]
-    best_loss = Y_init[best_idx]
-    elapsed = T_init[best_idx]
-    store_best_params(
-        0,
-        best_x, 
-        best_loss, 
-        elapsed, 
-        optimization_rules,
-        path_output_best,
-    )
 
     X_sample = X_init
     Y_sample = np.array(Y_init)[..., np.newaxis]
