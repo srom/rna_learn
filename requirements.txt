@@ -7,3 +7,4 @@ seaborn
 biopython
 gffutils
 jupyter
+scikit-learn

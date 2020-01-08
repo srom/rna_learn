@@ -107,6 +107,13 @@ def split_train_test_set(x, y, test_ratio=0.2, return_indices=False):
         return x_train, y_train, x_test, y_test, train_idx, test_idx
 
 
+def get_x_extras(dataset_df, extras):
+    x_extras = []
+    for extra in extras:
+        x_extras.append(dataset_df[extra].values)
+    return np.stack(x_extras).swapaxes(0, 1)
+
+
 def normalize(y, mean, std):
     return (y - mean) / std
 

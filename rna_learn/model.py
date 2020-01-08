@@ -32,6 +32,13 @@ def rnn_regression_model(alphabet_size, n_timesteps=None, n_hidden=100, dropout=
     return keras.Model(inputs=inputs, outputs=outputs)
 
 
+def compile_regression_model(model, learning_rate):
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+        loss=lambda y, normal_dist: -normal_dist.log_prob(y),
+    )
+
+
 def rnn_classification_model(
     alphabet_size, 
     n_classes, 
@@ -62,16 +69,56 @@ def rnn_classification_model(
     return keras.Model(inputs=inputs, outputs=outputs)
 
 
-def compile_regression_model(model, learning_rate):
-    model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-        loss=lambda y, normal_dist: -normal_dist.log_prob(y),
-    )
+def conv1d_classification_model(
+    alphabet_size, 
+    n_classes,
+
+    n_conv_1=2,
+    n_filters_1=100, 
+    kernel_size_1=10,
+    l2_reg_1=0.001,
+
+    n_conv_2=2,
+    n_filters_2=200, 
+    kernel_size_2=10,
+    l2_reg_2=0.001,
+
+    dropout=0.5,
+):
+    inputs = keras.Input(shape=(None, alphabet_size), name='sequence')
+
+    x = inputs
+    for _ in range(n_conv_1):
+        x = keras.layers.Conv1D(
+            filters=n_filters_1, 
+            kernel_size=kernel_size_1, 
+            activation='relu',
+            kernel_regularizer=keras.regularizers.l2(l=l2_reg_1),
+        )(x)
+
+    for _ in range(n_conv_2):
+        x = keras.layers.Conv1D(
+            filters=n_filters_2, 
+            kernel_size=kernel_size_2, 
+            activation='relu',
+            kernel_regularizer=keras.regularizers.l2(l=l2_reg_2),
+        )(x)
+
+    x = keras.layers.GlobalAveragePooling1D()(x)
+    x = keras.layers.Dropout(dropout)(x)
+
+    outputs = keras.layers.Dense(n_classes, activation='softmax')(x)
+
+    return keras.Model(inputs=inputs, outputs=outputs)
 
 
-def compile_classification_model(model, learning_rate):
+def compile_classification_model(model, learning_rate, epsilon=1e-07):
     model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+        optimizer=keras.optimizers.Adam(
+            learning_rate=learning_rate,
+            epsilon=epsilon,
+            amsgrad=True,
+        ),
         loss=keras.losses.CategoricalCrossentropy(),
         metrics=['accuracy'],
     )

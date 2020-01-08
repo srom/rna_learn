@@ -8,6 +8,7 @@ import numpy as np
 from .model import (
     rnn_regression_model, 
     rnn_classification_model,
+    conv1d_classification_model,
     compile_regression_model,
     compile_classification_model,
 )
@@ -22,7 +23,12 @@ def load_dataset(input_path, alphabet):
         sequence = tpl.sequence
         if len(set(sequence) - alphabet_set) == 0:
             indices.append(i)
-    return df.iloc[indices].reset_index(drop=True)
+
+    output_df = df.iloc[indices].reset_index(drop=True)
+
+    output_df['gc_content'] = output_df.apply(get_gc_content, axis=1)
+
+    return output_df
 
 
 def load_rna_structure_dataset(metadata, sequence_folder_path):
@@ -112,11 +118,23 @@ def load_mrna_model(run_id, learning_type, learning_rate, model_path, metadata_p
     if learning_type == 'regression':
         model = rnn_regression_model(alphabet_size=len(alphabet), n_lstm=n_lstm)
         compile_regression_model(model, learning_rate=learning_rate)
-    else:
+    if learning_type == 'classification_lstm':
         model = rnn_classification_model(alphabet_size=len(alphabet), n_classes=len(classes), n_lstm=n_lstm)
         compile_classification_model(model, learning_rate=learning_rate)
+    if learning_type == 'classification_conv1d':
+        model = conv1d_classification_model(alphabet_size=len(alphabet), n_classes=len(classes))
+        compile_classification_model(model, learning_rate=learning_rate)
+    else:
+        raise ValueError(f'Unknown learning type: {learning_type}')
 
     if resume:
         model.load_weights(model_path)
 
     return model, metadata
+
+
+def get_gc_content(row):
+    sequence = row['sequence']
+    length = row['length']
+    n_gc = len([b for b in sequence if b in {'G', 'C'}])
+    return n_gc / length

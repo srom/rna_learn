@@ -22,11 +22,18 @@ from .load import load_mrna_model, load_dataset
 logger = logging.getLogger(__name__)
 
 
+LEARNING_TYPES = [
+    'regression', 
+    'classification_lstm', 
+    'classification_conv1d',
+]
+
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('learning_type', choices=['regression', 'classification'])
+    parser.add_argument('learning_type', choices=LEARNING_TYPES)
     parser.add_argument('--run_id', type=str, default=None)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--learning_rate', type=float, default=1e-4)
@@ -96,7 +103,8 @@ def run(run_id, learning_type, learning_rate, batch_size, n_epochs, resume):
     x = sequence_embedding(sequences, alphabet)
 
     logger.info('Split train and test set')
-    x_train, y_train, x_test, y_test = split_train_test_set(x, y, test_ratio=0.2)
+    x_train, y_train, x_test, y_test, train_idx, test_idx = split_train_test_set(
+        x, y, test_ratio=0.2, return_indices=True)
 
     if learning_type == 'regression':
         mean, std = np.mean(y), np.std(y)

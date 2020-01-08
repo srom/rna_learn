@@ -1,6 +1,7 @@
 data/
 saved_models/
 saved_models_*/
+hyperparameters/
 
 .DS_STORE
 
