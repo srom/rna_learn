@@ -66,7 +66,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
 
     X_init_def = [
         dict(
-            n_epochs=1,
+            n_epochs=20,
             batch_size=64,
             learning_rate=1e-2,
             adam_epsilon=1e-7,
