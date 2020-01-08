@@ -35,6 +35,7 @@ def train_conv1d_with_hyperparameters(
     l2_reg_2,
     dropout,
     train_set_path=None,
+    verbose=1,
 ):
     alphabet = ['A', 'T', 'G', 'C']
     classes = ['psychrophilic', 'mesophilic', 'thermophilic']
@@ -75,9 +76,9 @@ def train_conv1d_with_hyperparameters(
         validation_data=(x_test, y_test),
         batch_size=batch_size,
         epochs=n_epochs,
-        verbose=1,
+        verbose=verbose,
     )
-    metrics = model.evaluate(x_test, y_test, verbose=0)
+    metrics = model.evaluate(x_test, y_test, verbose=verbose)
 
     loss = metrics[0]
     elapsed = time.time() - start

@@ -21,9 +21,11 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('n_iterations', type=int)
+    parser.add_argument('--verbose', type=int, default=1)
     args = parser.parse_args()
 
     n_iterations = args.n_iterations
+    verbose = args.verbose
 
     run_id = generate_random_run_id()
 
@@ -39,23 +41,23 @@ def main():
 
     logger.info(f'Run ID: {run_id}')
 
-    gaussian_process_optimisation(n_iterations, path_model, path_output_best, path_trace)
+    gaussian_process_optimisation(n_iterations, path_model, path_output_best, path_trace, verbose)
 
 
-def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_trace):
+def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_trace, verbose):
     make_float = lambda x: float(x)
     round_to_int = lambda x: int(round(x))
 
     optimization_rules = [
-        ('n_epochs', (1, 50), round_to_int),
+        ('n_epochs', (2, 20), round_to_int),
         ('batch_size', (10, 100), round_to_int),
         ('learning_rate', (1e-6, 0.1), make_float),
         ('adam_epsilon', (1e-8, 1.), make_float),
-        ('n_conv_1', (1, 20), round_to_int),
+        ('n_conv_1', (1, 10), round_to_int),
         ('n_filters_1', (1, 100), round_to_int), 
         ('kernel_size_1', (2, 100), round_to_int),
         ('l2_reg_1', (0., 0.1), make_float),
-        ('n_conv_2', (1, 20), round_to_int),
+        ('n_conv_2', (1, 10), round_to_int),
         ('n_filters_2', (1, 100), round_to_int), 
         ('kernel_size_2', (2, 100), round_to_int),
         ('l2_reg_2', (0., 0.1), make_float),
@@ -118,7 +120,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             else:
                 logger.info(f'{param}: {x_args[i]}')
 
-        return train_conv1d_with_hyperparameters(*x_args)
+        return train_conv1d_with_hyperparameters(*x_args, verbose=verbose)
 
     logger.info('Initializing with first two hyperparameters set')
     Y_init = []
