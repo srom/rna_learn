@@ -125,13 +125,13 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
     logger.info('Initializing with first two hyperparameters set')
     Y_init = []
     T_init = []
-    best_loss = np.inf
+    best_loss = -np.inf
     for i, x in enumerate(X_init):
         logger.info(f'Initialization {i+1}')
         loss, elapsed, model = f(x)
         Y_init.append(loss)
         T_init.append(elapsed)
-        if loss < best_loss:
+        if loss > best_loss:
             best_loss = loss
             store_best_params(
                 0,
@@ -169,7 +169,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
         })
         store_trace(trace, optimization_rules, path_trace)
 
-        if loss < best_loss:
+        if loss > best_loss:
             best_loss = loss
             store_best_params(
                 i + 1,
