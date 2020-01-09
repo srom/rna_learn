@@ -244,7 +244,7 @@ def propose_location(acquisition, X_sample, Y_sample, gpr, gpr_s, bounds, n_rest
         Location of the acquisition function maximum.
     '''
     dim = X_sample.shape[1]
-    ei_min = np.inf
+    ei_min_neg = np.inf
     x_min = None
     
     def min_obj(X):
@@ -253,14 +253,14 @@ def propose_location(acquisition, X_sample, Y_sample, gpr, gpr_s, bounds, n_rest
     # Find the best optimum by starting from n_restart different random points.
     for x0 in np.random.uniform(bounds[:, 0], bounds[:, 1], size=(n_restarts, dim)):
         res = minimize(min_obj, x0=x0, bounds=bounds, method='L-BFGS-B')        
-        if res.success and res.fun[0] < ei_min:
-            ei_min = res.fun[0]
+        if res.success and res.fun[0] < ei_min_neg:
+            ei_min_neg = res.fun[0]
             x_min = res.x
 
     if x_min is None:
         raise ValueError('Optimisation of acquisition function failed')
 
-    return x_min, ei_min
+    return x_min, -ei_min_neg
 
 
 def store_trace(trace, optimization_rules, output_path):
