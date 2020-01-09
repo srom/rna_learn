@@ -264,8 +264,8 @@ def propose_location(acquisition, X_sample, Y_sample, gpr, gpr_s, bounds, n_rest
     # Find the best optimum by starting from n_restart different random points.
     for x0 in np.random.uniform(bounds[:, 0], bounds[:, 1], size=(n_restarts, dim)):
         res = minimize(min_obj, x0=x0, bounds=bounds, method='L-BFGS-B')        
-        if res.success and res.fun[0] < ei_min_neg:
-            ei_min_neg = res.fun[0]
+        if res.success and res.fun < ei_min_neg:
+            ei_min_neg = res.fun
             x_min = res.x
 
     if x_min is None:
@@ -289,7 +289,7 @@ def store_trace(trace, optimization_rules, output_path):
                 param: x_args[i][j]
                 for j, param in enumerate(params)
             },
-            'expected_improvement_per_second': t['ei'],
+            'expected_improvement': t['ei'],
             'loss': t['loss'],
             'elapsed': t['elapsed'],
             'timestamp': t['timestamp'],
