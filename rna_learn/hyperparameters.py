@@ -166,6 +166,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             'ei': ei,
             'loss': loss,
             'elapsed': elapsed,
+            'timestamp': time.time(),
         })
         store_trace(trace, optimization_rules, path_trace)
 
@@ -280,6 +281,7 @@ def store_trace(trace, optimization_rules, output_path):
             'expected_improvement_per_second': t['ei'],
             'loss': t['loss'],
             'elapsed': t['elapsed'],
+            'timestamp': t['timestamp'],
         }
         for i, t in enumerate(trace)
     ]
