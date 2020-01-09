@@ -47,17 +47,18 @@ def main():
 def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_trace, verbose):
     make_float = lambda x: float(x)
     round_to_int = lambda x: int(round(x))
+    inverse_log = lambda x: 10 ** x
 
     optimization_rules = [
-        ('n_epochs', (2, 20), round_to_int),
+        ('n_epochs', (2, 10), round_to_int),
         ('batch_size', (10, 100), round_to_int),
-        ('learning_rate', (1e-6, 0.1), make_float),
-        ('adam_epsilon', (1e-8, 1.), make_float),
-        ('n_conv_1', (1, 10), round_to_int),
+        ('learning_rate', (-6, 0), inverse_log),
+        ('adam_epsilon', (-8, 0), inverse_log),
+        ('n_conv_1', (1, 5), round_to_int),
         ('n_filters_1', (1, 100), round_to_int), 
         ('kernel_size_1', (2, 100), round_to_int),
         ('l2_reg_1', (0., 0.1), make_float),
-        ('n_conv_2', (1, 10), round_to_int),
+        ('n_conv_2', (1, 5), round_to_int),
         ('n_filters_2', (1, 100), round_to_int), 
         ('kernel_size_2', (2, 100), round_to_int),
         ('l2_reg_2', (0., 0.1), make_float),
