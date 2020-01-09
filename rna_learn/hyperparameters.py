@@ -3,6 +3,7 @@ import os
 import logging
 import string
 import json
+import time
 
 import numpy as np
 from scipy.stats import norm
@@ -57,12 +58,12 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
         ('n_conv_1', (1, 5), round_to_int),
         ('n_filters_1', (1, 100), round_to_int), 
         ('kernel_size_1', (2, 100), round_to_int),
-        ('l2_reg_1', (0., 0.1), make_float),
+        #('l2_reg_1', (0., 0.1), make_float),
         ('n_conv_2', (1, 5), round_to_int),
         ('n_filters_2', (1, 100), round_to_int), 
         ('kernel_size_2', (2, 100), round_to_int),
-        ('l2_reg_2', (0., 0.1), make_float),
-        ('dropout', (0., 0.8), make_float),
+        #('l2_reg_2', (0., 0.1), make_float),
+        #('dropout', (0., 0.8), make_float),
     ]
     bounds = np.array([r[1] for r in optimization_rules], dtype='float32')
     transform_functions = [r[2] for r in optimization_rules]
@@ -76,12 +77,12 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             n_conv_1=1,
             n_filters_1=20, 
             kernel_size_1=2,
-            l2_reg_1=0.1,
+            #l2_reg_1=0.1,
             n_conv_2=1,
             n_filters_2=10, 
             kernel_size_2=2,
-            l2_reg_2=0.01,
-            dropout=0.,
+            #l2_reg_2=0.01,
+            #dropout=0.,
         ),
         dict(
             n_epochs=5,
@@ -91,12 +92,12 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             n_conv_1=2,
             n_filters_1=100, 
             kernel_size_1=10,
-            l2_reg_1=0.,
+            #l2_reg_1=0.,
             n_conv_2=2,
             n_filters_2=100, 
             kernel_size_2=10,
-            l2_reg_2=0.,
-            dropout=0.5,
+            #l2_reg_2=0.,
+            #dropout=0.5,
         ),
     ]
     X_init = np.array([
@@ -147,7 +148,9 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
     X_sample = X_init
     Y_sample = np.array(Y_init)[..., np.newaxis]
     T_sample = np.array(np.log(T_init))[..., np.newaxis]
-    acq_fn = expected_improvement_per_second
+    
+    # acq_fn = expected_improvement_per_second
+    acq_fn = expected_improvement
 
     logger.info('Starting hyperparameters optimisation')
 
@@ -194,7 +197,11 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
     logger.info('DONE')
 
 
-def expected_improvement_per_second(X, X_sample, Y_sample, gpr, gpr_s, xi=0.01):
+def expected_improvement_per_seconds(X, X_sample, Y_sample, gpr, gpr_s, xi=0.01):
+    return expected_improvement(X, X_sample, Y_sample, gpr, gpr_s, xi, per_second=True)
+
+
+def expected_improvement(X, X_sample, Y_sample, gpr, gpr_s, xi=0.01, per_second=False):
     '''
     Computes the EI at points X based on existing samples X_sample
     and Y_sample using a Gaussian process surrogate model, then divides 
@@ -227,7 +234,10 @@ def expected_improvement_per_second(X, X_sample, Y_sample, gpr, gpr_s, xi=0.01):
         ei = imp * norm.cdf(Z) + sigma * norm.pdf(Z)
         ei[sigma == 0.0] = 0.0
 
-    return ei / expected_duration
+    if per_second:
+        return ei / expected_duration
+    else:
+        return ei
 
 
 def propose_location(acquisition, X_sample, Y_sample, gpr, gpr_s, bounds, n_restarts=25):

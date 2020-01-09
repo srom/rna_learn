@@ -28,12 +28,12 @@ def train_conv1d_with_hyperparameters(
     n_conv_1,
     n_filters_1, 
     kernel_size_1,
-    l2_reg_1,
+    #l2_reg_1,
     n_conv_2,
     n_filters_2, 
     kernel_size_2,
-    l2_reg_2,
-    dropout,
+    #l2_reg_2,
+    #dropout,
     train_set_path=None,
     verbose=1,
 ):
@@ -61,12 +61,12 @@ def train_conv1d_with_hyperparameters(
         n_conv_1=n_conv_1,
         n_filters_1=n_filters_1, 
         kernel_size_1=kernel_size_1,
-        l2_reg_1=l2_reg_1,
+        #l2_reg_1=l2_reg_1,
         n_conv_2=n_conv_2,
         n_filters_2=n_filters_2, 
         kernel_size_2=kernel_size_2,
-        l2_reg_2=l2_reg_2,
-        dropout=dropout,
+        #l2_reg_2=l2_reg_2,
+        #dropout=dropout,
     )
     compile_classification_model(model, learning_rate, adam_epsilon)
 

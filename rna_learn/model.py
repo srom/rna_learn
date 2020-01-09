@@ -76,12 +76,12 @@ def conv1d_classification_model(
     n_conv_1=2,
     n_filters_1=100, 
     kernel_size_1=10,
-    l2_reg_1=0.001,
+    l2_reg_1=0.,
 
     n_conv_2=2,
-    n_filters_2=200, 
+    n_filters_2=100, 
     kernel_size_2=10,
-    l2_reg_2=0.001,
+    l2_reg_2=0.,
 
     dropout=0.5,
 ):
