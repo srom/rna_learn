@@ -51,7 +51,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
 
     optimization_rules = [
         ('n_epochs', (2, 10), round_to_int),
-        ('batch_size', (10, 100), round_to_int),
+        ('batch_size', (16, 256), round_to_int),
         ('learning_rate', (-6, 0), inverse_log),
         ('adam_epsilon', (-8, 0), inverse_log),
         ('n_conv_1', (1, 5), round_to_int),
@@ -69,16 +69,16 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
 
     X_init_def = [
         dict(
-            n_epochs=20,
-            batch_size=64,
-            learning_rate=1e-2,
-            adam_epsilon=1e-7,
+            n_epochs=10,
+            batch_size=128,
+            learning_rate=-2,
+            adam_epsilon=-7,
             n_conv_1=1,
             n_filters_1=20, 
             kernel_size_1=2,
-            l2_reg_1=0.01,
+            l2_reg_1=0.1,
             n_conv_2=1,
-            n_filters_2=20, 
+            n_filters_2=10, 
             kernel_size_2=2,
             l2_reg_2=0.01,
             dropout=0.,
@@ -86,8 +86,8 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
         dict(
             n_epochs=5,
             batch_size=32,
-            learning_rate=1e-4,
-            adam_epsilon=1e-7,
+            learning_rate=-4,
+            adam_epsilon=-7,
             n_conv_1=2,
             n_filters_1=100, 
             kernel_size_1=10,
