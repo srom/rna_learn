@@ -192,7 +192,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
 
         X_sample = np.vstack((X_sample, X_next))
         Y_sample = np.vstack((Y_sample, Y_next))
-        T_sample = np.vstack((T_sample, Y_next))
+        T_sample = np.vstack((T_sample, T_next))
 
     logger.info('DONE')
 
