@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def train_conv1d_with_hyperparameters(
     n_epochs,
     #batch_size,
-    learning_rate,
+    #learning_rate,
     #adam_epsilon,
     n_conv_1,
     n_filters_1, 
@@ -70,7 +70,7 @@ def train_conv1d_with_hyperparameters(
     )
     compile_classification_model(
         model, 
-        learning_rate, 
+        learning_rate=1e-4, 
         #adam_epsilon
     )
 
