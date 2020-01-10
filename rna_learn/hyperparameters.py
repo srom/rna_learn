@@ -141,7 +141,11 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
                 best_loss, 
                 elapsed, 
                 optimization_rules,
-                path_output_best,
+
+
+
+
+            path_output_best,
             )
             model.save(model_path)
 
@@ -149,7 +153,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
     Y_sample = np.array(Y_init)[..., np.newaxis]
     T_sample = np.array(np.log(T_init))[..., np.newaxis]
     
-    acq_fn = expected_improvement_per_second
+    acq_fn = expected_improvement_per_seconds
     # acq_fn = expected_improvement
 
     logger.info('Starting hyperparameters optimisation')
