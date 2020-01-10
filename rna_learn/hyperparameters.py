@@ -72,7 +72,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
         dict(
             n_epochs=10,
             #batch_size=128,
-            learning_rate=-2,
+            learning_rate=-5,
             #adam_epsilon=-7,
             n_conv_1=1,
             n_filters_1=20, 
