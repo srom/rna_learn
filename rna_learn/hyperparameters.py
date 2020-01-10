@@ -141,11 +141,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
                 best_loss, 
                 elapsed, 
                 optimization_rules,
-
-
-
-
-            path_output_best,
+                path_output_best,
             )
             model.save(model_path)
 
