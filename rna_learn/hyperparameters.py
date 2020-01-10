@@ -51,16 +51,16 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
     inverse_log = lambda x: 10 ** x
 
     optimization_rules = [
-        ('n_epochs', (2, 10), round_to_int),
-        ('batch_size', (16, 256), round_to_int),
-        ('learning_rate', (-6, 0), inverse_log),
-        ('adam_epsilon', (-8, 0), inverse_log),
+        ('n_epochs', (2, 20), round_to_int),
+        #('batch_size', (16, 256), round_to_int),
+        ('learning_rate', (-5, -3), inverse_log),
+        #('adam_epsilon', (-8, 0), inverse_log),
         ('n_conv_1', (1, 5), round_to_int),
-        ('n_filters_1', (1, 100), round_to_int), 
+        ('n_filters_1', (1, 200), round_to_int), 
         ('kernel_size_1', (2, 100), round_to_int),
         #('l2_reg_1', (0., 0.1), make_float),
         ('n_conv_2', (1, 5), round_to_int),
-        ('n_filters_2', (1, 100), round_to_int), 
+        ('n_filters_2', (1, 200), round_to_int), 
         ('kernel_size_2', (2, 100), round_to_int),
         #('l2_reg_2', (0., 0.1), make_float),
         #('dropout', (0., 0.8), make_float),
@@ -71,9 +71,9 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
     X_init_def = [
         dict(
             n_epochs=10,
-            batch_size=128,
+            #batch_size=128,
             learning_rate=-2,
-            adam_epsilon=-7,
+            #adam_epsilon=-7,
             n_conv_1=1,
             n_filters_1=20, 
             kernel_size_1=2,
@@ -86,9 +86,9 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
         ),
         dict(
             n_epochs=5,
-            batch_size=32,
+            #batch_size=32,
             learning_rate=-4,
-            adam_epsilon=-7,
+            #adam_epsilon=-7,
             n_conv_1=2,
             n_filters_1=100, 
             kernel_size_1=10,
@@ -224,7 +224,6 @@ def expected_improvement(X, X_sample, Y_sample, gpr, gpr_s, xi=0.01, per_second=
     expected_duration = np.exp(expected_duration_ln)
 
     sigma = sigma[..., np.newaxis]
-    expected_duration = expected_duration[..., np.newaxis]
 
     mu_sample_opt = np.max(Y_sample)
 
