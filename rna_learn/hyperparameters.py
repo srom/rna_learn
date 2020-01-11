@@ -132,7 +132,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             store_best_params(
                 0,
                 x, 
-                train_loss
+                train_loss,
                 test_loss, 
                 elapsed, 
                 optimization_rules,
@@ -175,7 +175,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             store_best_params(
                 i + 1,
                 x_next, 
-                train_loss
+                train_loss,
                 test_loss, 
                 elapsed, 
                 optimization_rules,
