@@ -79,8 +79,8 @@ def train_conv1d_with_hyperparameters(
         verbose=verbose,
     )
 
-    train_accuracy = float(history.history['accuracy'])
-    test_accuracy = float(history.history['val_accuracy'])
+    train_accuracy = float(history.history['accuracy'][-1])
+    test_accuracy = float(history.history['val_accuracy'][-1])
 
     elapsed = time.time() - start
 
