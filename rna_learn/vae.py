@@ -4,25 +4,28 @@ from tensorflow import keras
 import tensorflow_probability as tfp
 
 
-def variational_autoencoder(n_inputs, encoding_size, n_hidden, dropout=0.5):
+def variational_autoencoder(n_inputs, encoding_size, n_hidden, n_layers=1, dropout=0.5):
     prior = tfp.distributions.Independent(
         tfp.distributions.Normal(loc=tf.zeros(encoding_size), scale=1),
         reinterpreted_batch_ndims=1,
     )
-    encoder = make_encoder(n_inputs, encoding_size, n_hidden, dropout, prior)
-    decoder = make_decoder(n_inputs, encoding_size, n_hidden, dropout)
+    encoder = make_encoder(n_inputs, encoding_size, n_hidden, n_layers, dropout, prior)
+    decoder = make_decoder(n_inputs, encoding_size, n_hidden, n_layers, dropout)
     vae = keras.Model(inputs=encoder.inputs, outputs=decoder(encoder.outputs))
 
     return prior, encoder, decoder, vae
 
 
-def make_encoder(n_inputs, encoding_size, n_hidden, dropout, prior):
+def make_encoder(n_inputs, encoding_size, n_hidden, n_layers, dropout, prior):
     n_mvn_params = tfp.layers.MultivariateNormalTriL.params_size(encoding_size)
 
     inputs = keras.layers.Input(shape=(n_inputs,))
 
-    x = keras.layers.Dense(n_hidden, activation='relu')(inputs)
-    x = keras.layers.Dropout(dropout)(x)
+    x = inputs
+    for _ in range(n_layers):
+        x = keras.layers.Dense(n_hidden, activation='relu')(inputs)
+        x = keras.layers.Dropout(dropout)(x)
+
     x = keras.layers.Dense(n_mvn_params)(x)
 
     encoded_outputs = tfp.layers.MultivariateNormalTriL(
@@ -33,13 +36,16 @@ def make_encoder(n_inputs, encoding_size, n_hidden, dropout, prior):
     return  keras.Model(inputs=inputs, outputs=encoded_outputs)
 
 
-def make_decoder(n_inputs, encoding_size, n_hidden, dropout):
+def make_decoder(n_inputs, encoding_size, n_hidden, n_layers, dropout):
     n_normal_params = n_inputs * 2
 
     encoded_inputs = keras.layers.Input(shape=(encoding_size,))
 
-    x = keras.layers.Dense(n_hidden, activation='relu')(encoded_inputs)
-    x = keras.layers.Dropout(dropout)(x)
+    x = encoded_inputs
+    for _ in range(n_layers):
+        x = keras.layers.Dense(n_hidden, activation='relu')(x)
+        x = keras.layers.Dropout(dropout)(x)
+
     x = keras.layers.Dense(n_normal_params)(x)
 
     decoded_outputs = tfp.layers.IndependentNormal(n_inputs)(x)
