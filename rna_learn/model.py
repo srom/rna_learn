@@ -76,13 +76,12 @@ def conv1d_classification_model(
     n_conv_1=2,
     n_filters_1=100, 
     kernel_size_1=10,
-    l2_reg_1=0.,
 
     n_conv_2=2,
     n_filters_2=100, 
     kernel_size_2=10,
-    l2_reg_2=0.,
 
+    l2_reg=1e-4,
     dropout=0.5,
 ):
     inputs = keras.Input(shape=(None, alphabet_size), name='sequence')
@@ -93,7 +92,7 @@ def conv1d_classification_model(
             filters=n_filters_1, 
             kernel_size=kernel_size_1, 
             activation='relu',
-            kernel_regularizer=keras.regularizers.l2(l=l2_reg_1),
+            kernel_regularizer=keras.regularizers.l2(l=l2_reg),
         )(x)
 
     for _ in range(n_conv_2):
@@ -101,13 +100,17 @@ def conv1d_classification_model(
             filters=n_filters_2, 
             kernel_size=kernel_size_2, 
             activation='relu',
-            kernel_regularizer=keras.regularizers.l2(l=l2_reg_2),
+            kernel_regularizer=keras.regularizers.l2(l=l2_reg),
         )(x)
 
     x = keras.layers.GlobalAveragePooling1D()(x)
     x = keras.layers.Dropout(dropout)(x)
 
-    outputs = keras.layers.Dense(n_classes, activation='softmax')(x)
+    outputs = keras.layers.Dense(
+        n_classes, 
+        activation='softmax',
+        kernel_regularizer=keras.regularizers.l2(l=l2_reg),
+    )(x)
 
     return keras.Model(inputs=inputs, outputs=outputs)
 

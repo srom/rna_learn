@@ -58,11 +58,9 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
         ('n_conv_1', (1, 5), round_to_int),
         ('n_filters_1', (1, 100), round_to_int), 
         ('kernel_size_1', (2, 100), round_to_int),
-        #('l2_reg_1', (0., 0.1), make_float),
         ('n_conv_2', (1, 5), round_to_int),
         ('n_filters_2', (1, 100), round_to_int), 
         ('kernel_size_2', (2, 100), round_to_int),
-        #('l2_reg_2', (0., 0.1), make_float),
         #('dropout', (0., 0.8), make_float),
     ]
     bounds = np.array([r[1] for r in optimization_rules], dtype='float32')
@@ -77,11 +75,9 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             n_conv_1=1,
             n_filters_1=20, 
             kernel_size_1=2,
-            #l2_reg_1=0.1,
             n_conv_2=1,
             n_filters_2=10, 
             kernel_size_2=2,
-            #l2_reg_2=0.01,
             #dropout=0.,
         ),
         dict(
@@ -92,11 +88,9 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             n_conv_1=2,
             n_filters_1=100, 
             kernel_size_1=10,
-            #l2_reg_1=0.,
             n_conv_2=2,
             n_filters_2=100, 
             kernel_size_2=10,
-            #l2_reg_2=0.,
             #dropout=0.5,
         ),
     ]
