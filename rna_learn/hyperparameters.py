@@ -124,15 +124,16 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
     best_loss = -np.inf
     for i, x in enumerate(X_init):
         logger.info(f'Initialization {i+1}')
-        loss, elapsed, model = f(x)
-        Y_init.append(loss)
+        train_loss, test_loss, elapsed, model = f(x)
+        Y_init.append(test_loss)
         T_init.append(elapsed)
-        if loss > best_loss:
-            best_loss = loss
+        if test_loss > best_loss:
+            best_loss = test_loss
             store_best_params(
                 0,
                 x, 
-                best_loss, 
+                train_loss
+                test_loss, 
                 elapsed, 
                 optimization_rules,
                 path_output_best,
@@ -157,23 +158,25 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
 
         x_next, ei = propose_location(acq_fn, X_sample, Y_sample, gpr, gpr_s, bounds)
 
-        loss, elapsed, model = f(x_next)
+        train_loss, test_loss, elapsed, model = f(x_next)
 
         trace.append({
             'x': x_next,
             'ei': ei,
-            'loss': loss,
+            'train_loss': train_loss,
+            'test_loss': test_loss,
             'elapsed': elapsed,
             'timestamp': time.time(),
         })
         store_trace(trace, optimization_rules, path_trace)
 
-        if loss > best_loss:
-            best_loss = loss
+        if test_loss > best_loss:
+            best_loss = test_loss
             store_best_params(
                 i + 1,
                 x_next, 
-                loss, 
+                train_loss
+                test_loss, 
                 elapsed, 
                 optimization_rules,
                 path_output_best,
@@ -181,7 +184,7 @@ def gaussian_process_optimisation(n_iter, model_path, path_output_best, path_tra
             model.save(model_path)
 
         X_next = x_next[np.newaxis, ...]
-        Y_next = np.array([loss])[..., np.newaxis]
+        Y_next = np.array([test_loss])[..., np.newaxis]
         T_next = np.array([np.log(elapsed)])[..., np.newaxis]
 
         X_sample = np.vstack((X_sample, X_next))
@@ -283,7 +286,8 @@ def store_trace(trace, optimization_rules, output_path):
                 for j, param in enumerate(params)
             },
             'expected_improvement': t['ei'],
-            'loss': t['loss'],
+            'train_loss': t['train_loss'],
+            'test_loss': t['test_loss'],
             'elapsed': t['elapsed'],
             'timestamp': t['timestamp'],
         }
@@ -297,7 +301,7 @@ def store_trace(trace, optimization_rules, output_path):
         )
 
 
-def store_best_params(iteration, x, loss, elapsed, optimization_rules, output_path):
+def store_best_params(iteration, x, train_loss, test_loss, elapsed, optimization_rules, output_path):
     params = [r[0] for r in optimization_rules]
     transform_functions = [r[2] for r in optimization_rules]
     x_args = [transform_functions[i](v) for i, v in enumerate(x)]
@@ -308,7 +312,8 @@ def store_best_params(iteration, x, loss, elapsed, optimization_rules, output_pa
             param: x_args[i]
             for i, param in enumerate(params)
         },
-        'loss': loss,
+        'train_loss': train_loss,
+        'test_loss': test_loss,
         'elapsed_seconds': elapsed,
     }
 

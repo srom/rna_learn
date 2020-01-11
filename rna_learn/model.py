@@ -81,7 +81,7 @@ def conv1d_classification_model(
     n_filters_2=100, 
     kernel_size_2=10,
 
-    l2_reg=1e-4,
+    l2_reg=1e-3,
     dropout=0.5,
 ):
     inputs = keras.Input(shape=(None, alphabet_size), name='sequence')

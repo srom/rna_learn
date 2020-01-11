@@ -70,7 +70,7 @@ def train_conv1d_with_hyperparameters(
         #adam_epsilon
     )
 
-    model.fit(
+    history = model.fit(
         x_train,
         y_train,
         validation_data=(x_test, y_test),
@@ -78,10 +78,10 @@ def train_conv1d_with_hyperparameters(
         epochs=n_epochs,
         verbose=verbose,
     )
-    metrics = model.evaluate(x_test, y_test, verbose=verbose)
 
-    accuracy = float(metrics[1])
+    train_accuracy = float(history.history['accuracy'])
+    test_accuracy = float(history.history['val_accuracy'])
 
     elapsed = time.time() - start
 
-    return accuracy, elapsed, model
+    return train_accuracy, test_accuracy, elapsed, model
