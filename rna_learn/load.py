@@ -27,6 +27,8 @@ def load_dataset(input_path, alphabet):
     output_df = df.iloc[indices].reset_index(drop=True)
 
     output_df['gc_content'] = output_df.apply(get_gc_content, axis=1)
+    output_df['secondary_structure'] = output_df.apply(get_secondary_structure, axis=1)
+    output_df['paired_nucleotides'] = output_df.apply(get_paired_nucleotides, axis=1)
 
     return output_df
 
@@ -138,3 +140,33 @@ def get_gc_content(row):
     length = row['length']
     n_gc = len([b for b in sequence if b in {'G', 'C'}])
     return n_gc / length
+
+
+def get_secondary_structure(row):
+    specie_name = row['specie_name'].replace(' ', '_').lower()
+    seqid = row['seqid'].replace(' ', '_').lower()
+    gene_name = row['gene_name'].replace(' ', '_').lower()
+
+    f_name = f'{specie_name}_{seqid}_{gene_name}.fold'
+    folder = 'data/ncbi/secondary_structure/'
+    path = os.path.join(os.getcwd(), folder, f_name)
+
+    with open(path) as f:
+        lines = f.readlines()
+
+        # Remove free energy information at the end
+        content = re.sub(
+           r'\s+\([-0-9\.]+\)\s*$', 
+           '', 
+           lines[-1]
+        )
+        content = content.strip()
+
+    return content
+
+
+def get_paired_nucleotides(row):
+    secondary_structure = row['secondary_structure']
+    length = row['length']
+    p = len([b for b in secondary_structure if b in {'(', ')'}])
+    return p / length

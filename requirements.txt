@@ -8,3 +8,4 @@ biopython
 gffutils
 jupyter
 scikit-learn
+statsmodels
