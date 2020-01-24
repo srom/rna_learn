@@ -50,7 +50,7 @@ def load_rna_structure_dataset(metadata, sequence_folder_path):
 
             # Remove free energy information at the end
             content = re.sub(
-               r'\s+\([-0-9\.]+\)\s*$', 
+               r'\s+\(\s*[-0-9\.]+\s*\)\s*$', 
                '', 
                content
             )
@@ -156,7 +156,7 @@ def get_secondary_structure(row):
 
         # Remove free energy information at the end
         content = re.sub(
-           r'\s+\([-0-9\.]+\)\s*$', 
+           r'\s+\(\s*[-0-9\.]+\s*\)\s*$', 
            '', 
            lines[-1]
         )

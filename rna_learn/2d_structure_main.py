@@ -16,25 +16,18 @@ from .transform import (
     one_hot_encode_classes,
     split_train_test_set,
 )
-from .load import load_mrna_model, load_dataset
+from .model import conv1d_classification_model, compile_classification_model
+from .load import load_dataset
 from .utilities import SaveModelCallback, generate_random_run_id
 
 
 logger = logging.getLogger(__name__)
 
 
-LEARNING_TYPES = [
-    'regression', 
-    'classification_lstm', 
-    'classification_conv1d',
-]
-
-
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('learning_type', choices=LEARNING_TYPES)
     parser.add_argument('--run_id', type=str, default=None)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--learning_rate', type=float, default=1e-4)
@@ -44,7 +37,6 @@ def main():
 
     run_id = args.run_id
     resume = args.resume
-    learning_type = args.learning_type
     learning_rate = args.learning_rate
     batch_size = args.batch_size
     n_epochs = args.n_epochs
@@ -56,15 +48,12 @@ def main():
         run_id = generate_random_run_id()
 
     logger.info(f'Run {run_id}')
-    run(run_id, learning_type, learning_rate, batch_size, n_epochs, resume)
 
-
-def run(run_id, learning_type, learning_rate, batch_size, n_epochs, resume):
-    input_path = os.path.join(os.getcwd(), 'data/ncbi/dataset.csv')
-    output_folder = os.path.join(os.getcwd(), f'saved_models_mrna/{run_id}/')
-    model_path = os.path.join(output_folder, f'{learning_type}_model.h5')
-    metadata_path = os.path.join(output_folder, f'{learning_type}_metadata.json')
-    log_dir = os.path.join(os.getcwd(), f'summary_log/{run_id}')
+    input_path = os.path.join(os.getcwd(), 'data/dataset_train.csv')
+    output_folder = os.path.join(os.getcwd(), f'saved_models_2d/{run_id}/')
+    model_path = os.path.join(output_folder, f'model.h5')
+    metadata_path = os.path.join(output_folder, f'metadata.json')
+    log_dir = os.path.join(os.getcwd(), f'summary_log/2d/{run_id}')
 
     for dir_path in [output_folder, log_dir]:
         try:
@@ -72,48 +61,62 @@ def run(run_id, learning_type, learning_rate, batch_size, n_epochs, resume):
         except FileExistsError:
             pass
 
+    alphabet = ['.', '(', ')']
+    classes = ['psychrophilic', 'mesophilic', 'thermophilic']
+
+    if resume:
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+    else:
+        metadata = {
+            'run_id': run_id,
+            'alphabet': alphabet,
+            'classes': classes,
+            'n_epochs': 0,
+            'n_conv_1': 2,
+            'n_filters_1': 100, 
+            'kernel_size_1': 10,
+            'n_conv_2': 0,
+            'n_filters_2': 0, 
+            'kernel_size_2': 0,
+            'l2_reg': 1e-4,
+            'dropout': 0.5,
+        }
+
+    model = conv1d_classification_model(
+        alphabet_size=len(alphabet), 
+        n_classes=len(classes),
+        n_conv_1=metadata['n_conv_1'],
+        n_filters_1=metadata['n_filters_1'], 
+        kernel_size_1=metadata['kernel_size_1'],
+        n_conv_2=metadata['n_conv_2'],
+        n_filters_2=metadata['n_filters_2'], 
+        kernel_size_2=metadata['kernel_size_2'],
+        l2_reg=metadata['l2_reg'],
+        dropout=metadata['dropout'],
+    )
+    compile_classification_model(model, learning_rate=learning_rate)
+
     if resume:
         logger.info(f'Resuming from {model_path}')
-
-    logger.info('Building model')
-    model, metadata = load_mrna_model(run_id, learning_type, learning_rate, model_path, metadata_path, resume)
-
-    alphabet = metadata['alphabet']
-    classes = metadata['classes']
+        model.load_weights(model_path)
 
     logger.info('Loading data')
-    dataset_df = load_dataset(input_path, alphabet)
+    dataset_df = load_dataset(input_path, ['A', 'T', 'G', 'C'])
 
-    if learning_type == 'regression':
-        y, dataset_df = make_dataset_balanced(
-            dataset_df,
-            cat_name='temperature_range',
-            output_col='temperature', 
-            classes=classes, 
-        )
-        y = y.astype(np.float32)
-    else:
-        y_str, dataset_df = make_dataset_balanced(
-            dataset_df, 
-            cat_name='temperature_range',
-            classes=classes,
-        )
-        y = one_hot_encode_classes(y_str, classes)
+    y_str, dataset_df = make_dataset_balanced(
+        dataset_df, 
+        cat_name='temperature_range',
+        classes=classes,
+    )
+    y = one_hot_encode_classes(y_str, classes)
 
-    sequences = dataset_df['sequence'].values
+    sequences = dataset_df['secondary_structure'].values
     x = sequence_embedding(sequences, alphabet)
 
     logger.info('Split train and test set')
     x_train, y_train, x_test, y_test, train_idx, test_idx = split_train_test_set(
         x, y, test_ratio=0.2, return_indices=True)
-
-    if learning_type == 'regression':
-        mean, std = np.mean(y), np.std(y)
-        y_test_norm = normalize(y_test, mean, std)
-        y_train_norm = normalize(y_train, mean, std)
-    else:
-        y_test_norm = y_test
-        y_train_norm = y_train
 
     initial_epoch = 0
     epochs = n_epochs
@@ -124,8 +127,8 @@ def run(run_id, learning_type, learning_rate, batch_size, n_epochs, resume):
     logger.info(f'Training run {run_id}')
     model.fit(
         x_train,
-        y_train_norm,
-        validation_data=(x_test, y_test_norm),
+        y_train,
+        validation_data=(x_test, y_test),
         batch_size=batch_size,
         epochs=epochs,
         initial_epoch=initial_epoch,
