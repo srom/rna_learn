@@ -1,4 +1,4 @@
-RNA structure vs Optimal Growth Temperature (OGT)
+Thermal adaptation of prokaryotic mRNA sequences
 --------------------------------------------------
 
 # Notebooks
