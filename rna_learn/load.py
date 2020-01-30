@@ -14,7 +14,7 @@ from .model import (
 )
 
 
-def load_dataset(input_path, alphabet):
+def load_dataset(input_path, alphabet, secondary=True):
     df = pd.read_csv(input_path)
 
     indices = []
@@ -27,8 +27,12 @@ def load_dataset(input_path, alphabet):
     output_df = df.iloc[indices].reset_index(drop=True)
 
     output_df['gc_content'] = output_df.apply(get_gc_content, axis=1)
-    output_df['secondary_structure'] = output_df.apply(get_secondary_structure, axis=1)
-    output_df['paired_nucleotides'] = output_df.apply(get_paired_nucleotides, axis=1)
+    output_df['ag_content'] = output_df.apply(get_ag_content, axis=1)
+    output_df['gt_content'] = output_df.apply(get_gt_content, axis=1)
+
+    if secondary:
+        output_df['secondary_structure'] = output_df.apply(get_secondary_structure, axis=1)
+        output_df['paired_nucleotides'] = output_df.apply(get_paired_nucleotides, axis=1)
 
     return output_df
 
@@ -136,10 +140,22 @@ def load_mrna_model(run_id, learning_type, learning_rate, model_path, metadata_p
 
 
 def get_gc_content(row):
+    return get_letters_content(row, {'G', 'C'})
+
+
+def get_ag_content(row):
+    return get_letters_content(row, {'A', 'G'})
+
+
+def get_gt_content(row):
+    return get_letters_content(row, {'G', 'T'})
+
+
+def get_letters_content(row, letters):
     sequence = row['sequence']
     length = row['length']
-    n_gc = len([b for b in sequence if b in {'G', 'C'}])
-    return n_gc / length
+    n = len([b for b in sequence if b in letters])
+    return n / length
 
 
 def get_secondary_structure(row):

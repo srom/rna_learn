@@ -13,7 +13,7 @@ class SaveModelCallback(tf.keras.callbacks.Callback):
         metadata_path, 
         metadata, 
         monitor='val_loss',
-        metrics=('val_accuracy',),
+        metrics=('val_accuracy', 'val_mae'),
     ):
         self.monitor = monitor
         self.metrics = metrics
