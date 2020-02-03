@@ -49,7 +49,10 @@ def make_dataset_balanced(
     output_col=None, 
     n_entries_per_class=None,
     classes=None,
+    seed=None,
 ):
+    rs = np.random.RandomState(seed)
+    
     if classes is None:
         classes = sorted(metadata[cat_name].unique().tolist())
 
@@ -73,7 +76,7 @@ def make_dataset_balanced(
         n_entries = len(metadata_slice)
         values_idx = metadata_slice.index.tolist()
 
-        indices = np.random.choice(
+        indices = rs.choice(
             values_idx, 
             size=n_entries_per_class, 
             replace=n_entries < n_entries_per_class,
@@ -92,9 +95,11 @@ def make_dataset_balanced(
     )
 
 
-def split_train_test_set(x, y, test_ratio=0.2, return_indices=False):
+def split_train_test_set(x, y, test_ratio=0.2, return_indices=False, seed=None):
+    rs = np.random.RandomState(seed)
+
     n_seq = len(x)
-    test_idx = np.random.choice(range(n_seq), size=int(test_ratio * n_seq), replace=False)
+    test_idx = rs.choice(range(n_seq), size=int(test_ratio * n_seq), replace=False)
     test_idx_set = set(test_idx.tolist())
     train_idx = np.array([idx for idx in range(n_seq) if idx not in test_idx_set])
 

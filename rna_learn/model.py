@@ -32,14 +32,6 @@ def rnn_regression_model(alphabet_size, n_timesteps=None, n_hidden=100, dropout=
     return keras.Model(inputs=inputs, outputs=outputs)
 
 
-def compile_regression_model(model, learning_rate, metrics=None):
-    model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-        loss=lambda y, normal_dist: -normal_dist.log_prob(y),
-        metrics=metrics,
-    )
-
-
 def rnn_classification_model(
     alphabet_size, 
     n_classes, 
@@ -159,6 +151,55 @@ def conv1d_regression_model(
     outputs = tfp.layers.IndependentNormal(1)(x)
 
     return keras.Model(inputs=inputs, outputs=outputs)
+
+
+def conv1d_densenet_regression_model(
+    alphabet_size,
+    growth_rate,
+    n_layers,
+    kernel_sizes,
+    l2_reg=1e-4,
+    dropout=0.5,
+):
+    if len(kernel_sizes) != n_layers:
+        raise ValueError('Kernel sizes argument must specify one kernel size per layer')
+
+    inputs = keras.Input(shape=(None, alphabet_size), name='sequence')
+
+    x = inputs
+    for l in range(n_layers):
+        kernel_size = kernel_sizes[l]
+
+        out = keras.layers.Conv1D(
+            filters=growth_rate, 
+            kernel_size=kernel_size, 
+            padding='same',
+            activation='relu',
+            kernel_regularizer=keras.regularizers.l2(l=l2_reg),
+            name=f'conv_{l+1}'
+        )(x)
+
+        x = keras.layers.concatenate([x, out], axis=2, name=f'concat_{l+1}')
+
+    x = keras.layers.GlobalAveragePooling1D(name='logits')(x)
+    x = keras.layers.Dropout(dropout)(x)
+    x = keras.layers.Dense(
+        units=2, 
+        kernel_regularizer=keras.regularizers.l2(l=l2_reg),
+        name='mean_and_std'
+    )(x)
+
+    outputs = tfp.layers.IndependentNormal(1)(x)
+
+    return keras.Model(inputs=inputs, outputs=outputs)
+
+
+def compile_regression_model(model, learning_rate, metrics=None):
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+        loss=lambda y, normal_dist: -normal_dist.log_prob(y),
+        metrics=metrics,
+    )
 
 
 def compile_classification_model(model, learning_rate, epsilon=1e-07):

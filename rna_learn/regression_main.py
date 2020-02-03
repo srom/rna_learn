@@ -16,7 +16,12 @@ from .transform import (
     one_hot_encode_classes,
     split_train_test_set,
 )
-from .model import conv1d_regression_model, compile_regression_model, MeanAbsoluteError
+from .model import (
+    conv1d_regression_model, 
+    conv1d_densenet_regression_model, 
+    compile_regression_model, 
+    MeanAbsoluteError,
+)
 from .load import load_dataset
 from .utilities import SaveModelCallback, generate_random_run_id
 
@@ -28,6 +33,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('model_type', choices=['conv1d', 'conv1d_densenet'])
     parser.add_argument('--run_id', type=str, default=None)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--learning_rate', type=float, default=1e-4)
@@ -35,6 +41,7 @@ def main():
     parser.add_argument('--n_epochs', type=int, default=10)
     args = parser.parse_args()
 
+    model_type = args.model_type
     run_id = args.run_id
     resume = args.resume
     learning_rate = args.learning_rate
@@ -62,38 +69,16 @@ def main():
             pass
 
     alphabet = ['A', 'T', 'G', 'C']
-    classes = ['psychrophilic', 'mesophilic', 'thermophilic']
-
-    logger.info('Loading data')
-    dataset_df = load_dataset(input_path, alphabet)
-
-    y, dataset_df = make_dataset_balanced(
-        dataset_df,
-        cat_name='temperature_range',
-        output_col='temperature', 
-        classes=classes, 
-    )
-    y = y.astype(np.float64)
-
-    sequences = dataset_df['sequence'].values
-    x = sequence_embedding(sequences, alphabet)
-
-    logger.info('Split train and test set')
-    x_train, y_train, x_test, y_test, train_idx, test_idx = split_train_test_set(
-        x, y, test_ratio=0.2, return_indices=True)
-
-    mean, std = np.mean(y), np.std(y)
-    y_test_norm = normalize(y_test, mean, std)
-    y_train_norm = normalize(y_train, mean, std)
 
     if resume:
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)
-    else:
+
+    elif model_type == 'conv1d':
         metadata = {
             'run_id': run_id,
             'alphabet': alphabet,
-            'classes': classes,
+            'model_type': model_type,
             'n_epochs': 0,
             'n_conv_1': 3,
             'n_filters_1': 88, 
@@ -103,19 +88,59 @@ def main():
             'kernel_size_2': 44,
             'l2_reg': 1e-4,
             'dropout': 0.5,
+            'seed': np.random.randint(0, 9999),
+        }
+    elif model_type == 'conv1d_densenet':
+        metadata = {
+            'run_id': run_id,
+            'alphabet': alphabet,
+            'model_type': model_type,
+            'n_epochs': 0,
+            'growth_rate': 19,
+            'n_layers': 5,
+            'kernel_sizes': [2, 3, 10, 20, 30],
+            'l2_reg': 1e-4,
+            'dropout': 0.5,
+            'seed': np.random.randint(0, 9999),
         }
 
-    model = conv1d_regression_model(
-        alphabet_size=len(alphabet), 
-        n_conv_1=metadata['n_conv_1'],
-        n_filters_1=metadata['n_filters_1'], 
-        kernel_size_1=metadata['kernel_size_1'],
-        n_conv_2=metadata['n_conv_2'],
-        n_filters_2=metadata['n_filters_2'], 
-        kernel_size_2=metadata['kernel_size_2'],
-        l2_reg=metadata['l2_reg'],
-        dropout=metadata['dropout'],
-    )
+    logger.info('Loading data')
+    dataset_df = load_dataset(input_path, alphabet, secondary=False)
+
+    x = sequence_embedding(dataset_df['sequence'].values, alphabet)
+    y = dataset_df['temperature'].values.astype(np.float64)
+
+    logger.info('Split train and test set')
+    seed = metadata['seed']
+    x_train, y_train, x_test, y_test, train_idx, test_idx = split_train_test_set(
+        x, y, test_ratio=0.2, return_indices=True, seed=seed)
+
+    mean, std = np.mean(y), np.std(y)
+    y_test_norm = normalize(y_test, mean, std)
+    y_train_norm = normalize(y_train, mean, std)
+
+    if model_type == 'conv1d':
+        model = conv1d_regression_model(
+            alphabet_size=len(alphabet), 
+            n_conv_1=metadata['n_conv_1'],
+            n_filters_1=metadata['n_filters_1'], 
+            kernel_size_1=metadata['kernel_size_1'],
+            n_conv_2=metadata['n_conv_2'],
+            n_filters_2=metadata['n_filters_2'], 
+            kernel_size_2=metadata['kernel_size_2'],
+            l2_reg=metadata['l2_reg'],
+            dropout=metadata['dropout'],
+        )
+    elif model_type == 'conv1d_densenet':
+        model = conv1d_densenet_regression_model(
+            alphabet_size=len(alphabet), 
+            growth_rate=metadata['growth_rate'],
+            n_layers=metadata['n_layers'],
+            kernel_sizes=metadata['kernel_sizes'],
+            l2_reg=metadata['l2_reg'],
+            dropout=metadata['dropout'],
+        )
+
     compile_regression_model(
         model, 
         learning_rate=learning_rate,
@@ -156,6 +181,8 @@ def main():
             ),
         ],
     )
+
+    logger.info('DONE')
 
 
 if __name__ == '__main__':
