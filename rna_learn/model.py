@@ -158,21 +158,30 @@ def conv1d_densenet_regression_model(
     growth_rate,
     n_layers,
     kernel_sizes,
+    strides=None,
     l2_reg=1e-4,
     dropout=0.5,
 ):
     if len(kernel_sizes) != n_layers:
         raise ValueError('Kernel sizes argument must specify one kernel size per layer')
 
+    if strides is None:
+        strides = [1] * n_layers
+
+    if len(strides) != n_layers:
+        raise ValueError('Strides argument must specify one stride per layer')
+
     inputs = keras.Input(shape=(None, alphabet_size), name='sequence')
 
     x = inputs
     for l in range(n_layers):
         kernel_size = kernel_sizes[l]
+        stride = strides[l]
 
         out = keras.layers.Conv1D(
             filters=growth_rate, 
-            kernel_size=kernel_size, 
+            kernel_size=kernel_size,
+            strides=stride,
             padding='same',
             activation='relu',
             kernel_regularizer=keras.regularizers.l2(l=l2_reg),
@@ -183,6 +192,56 @@ def conv1d_densenet_regression_model(
 
     x = keras.layers.GlobalAveragePooling1D(name='logits')(x)
     x = keras.layers.Dropout(dropout)(x)
+    x = keras.layers.Dense(
+        units=2, 
+        kernel_regularizer=keras.regularizers.l2(l=l2_reg),
+        name='mean_and_std'
+    )(x)
+
+    outputs = tfp.layers.IndependentNormal(1)(x)
+
+    return keras.Model(inputs=inputs, outputs=outputs)
+
+
+def dual_stream_conv1d_densenet_regression(
+    alphabet_size_1,
+    alphabet_size_2,
+    growth_rate,
+    n_layers,
+    kernel_sizes,
+    strides=None,
+    l2_reg=1e-4,
+    dropout=0.5,
+):
+    if len(kernel_sizes) != n_layers:
+        raise ValueError('Kernel sizes argument must specify one kernel size per layer')
+
+    inputs = keras.Input(shape=(None, alphabet_size_1 + alphabet_size_2), name='sequence')
+
+    x_stream_1 = inputs[..., :alphabet_size_1]
+    x_stream_2 = inputs[..., alphabet_size_1:]
+
+    features = []
+    for i, x_stream in enumerate([x_stream_1, x_stream_2]):
+        for l in range(n_layers):
+            kernel_size = kernel_sizes[l]
+
+            out = keras.layers.Conv1D(
+                filters=growth_rate, 
+                kernel_size=kernel_size,
+                padding='same',
+                activation='relu',
+                kernel_regularizer=keras.regularizers.l2(l=l2_reg),
+                name=f'conv_{i}_{l+1}'
+            )(x_stream)
+
+            x_stream = keras.layers.concatenate([x_stream, out], axis=2, name=f'concat_{i}_{l+1}')
+
+        xi = keras.layers.GlobalAveragePooling1D(name=f'logits_{i}')(x_stream)
+        xi = keras.layers.Dropout(dropout)(xi)
+        features.append(xi)
+
+    x = keras.layers.concatenate(features, axis=1, name=f'concat_final')
     x = keras.layers.Dense(
         units=2, 
         kernel_regularizer=keras.regularizers.l2(l=l2_reg),

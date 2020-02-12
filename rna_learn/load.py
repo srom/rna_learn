@@ -15,20 +15,12 @@ from .model import (
 
 
 def load_dataset(input_path, alphabet, secondary=True):
-    df = pd.read_csv(input_path)
+    output_df = pd.read_csv(input_path)
 
-    indices = []
-    alphabet_set = set(alphabet)
-    for i, tpl in enumerate(df.itertuples()):
-        sequence = tpl.sequence
-        if len(set(sequence) - alphabet_set) == 0:
-            indices.append(i)
-
-    output_df = df.iloc[indices].reset_index(drop=True)
-
-    output_df['gc_content'] = output_df.apply(get_gc_content, axis=1)
-    output_df['ag_content'] = output_df.apply(get_ag_content, axis=1)
-    output_df['gt_content'] = output_df.apply(get_gt_content, axis=1)
+    if sorted(set(alphabet)) == ['A', 'C', 'G', 'T']:
+        output_df['gc_content'] = output_df.apply(get_gc_content, axis=1)
+        output_df['ag_content'] = output_df.apply(get_ag_content, axis=1)
+        output_df['gt_content'] = output_df.apply(get_gt_content, axis=1)
 
     if secondary:
         output_df['secondary_structure'] = output_df.apply(get_secondary_structure, axis=1)

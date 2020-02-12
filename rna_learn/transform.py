@@ -10,7 +10,7 @@ def sequence_embedding(x, alphabet, unknown_char='-', dtype='float32'):
       x: sequence of strings
       alphabet: list of unique characters
     """
-    mask_value = np.array([0] * len(alphabet), dtype=np.float32)
+    mask_value = np.array([0] * len(alphabet), dtype=dtype)
 
     x_one_hot = one_hot_encode_sequences(x, alphabet, unknown_char)
 
@@ -39,6 +39,23 @@ def one_hot_encode_sequences(x, alphabet, unknown_char):
         output.append(row)
 
     return output
+
+
+def combine_sequences(x, aa, dtype='float64'):
+    output = []
+    for r, xi in enumerate(x):
+        sequences = []
+        for i, n in enumerate(xi):
+            aa_idx = int(np.floor(i / 3))
+            a = aa[r, aa_idx, :]
+
+            combined = n.tolist() + a.tolist()
+
+            sequences.append(combined)
+
+        output.append(sequences)
+
+    return np.array(output, dtype=dtype)
 
 
 def one_hot_encode_classes(y, classes):

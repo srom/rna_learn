@@ -1,9 +1,12 @@
 import unittest
 
-from .transform import sequence_embedding
+from .transform import sequence_embedding, combine_sequences
 
 
-alphabet_dna = ['A', 'T', 'G', 'C']
+alphabet_dna = [
+    'A', 'C', 'G', 'T',
+]
+
 alphabet_protein = [
     'A', 'C', 'D', 'E', 'F',
     'G', 'H', 'I', 'K', 'L',
@@ -24,8 +27,8 @@ class TestTransform(unittest.TestCase):
             [1., 0., 0., 0.],
             [1., 0., 0., 0.],
             [0., 0., 1., 0.],
-            [0., 1., 0., 0.],
             [0., 0., 0., 1.],
+            [0., 1., 0., 0.],
         ], seq_oh[0].tolist())
 
         self.assertEqual([
@@ -56,9 +59,27 @@ class TestTransform(unittest.TestCase):
             [1., 0., 0., 0.],
             [0., 0., 0., 0.],
             [0., 0., 1., 0.],
-            [0., 1., 0., 0.],
             [0., 0., 0., 1.],
+            [0., 1., 0., 0.],
         ], seq_oh[0].tolist())
+
+    def test_combine_sequences(self):
+        nn = sequence_embedding(['ATATAT'], alphabet_dna, dtype='float64')
+        aa = sequence_embedding(['IY'], alphabet_protein, dtype='float64')
+
+        x = combine_sequences(nn, aa, dtype='float64')
+
+        self.assertEqual((1, 6, 24), x.shape)
+
+        self.assertEqual([
+            [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            [0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            [0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.],
+            [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.],
+            [0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.],
+
+        ], x[0].tolist())
 
 
 if __name__ == '__main__':
