@@ -255,7 +255,7 @@ def dual_stream_conv1d_densenet_regression(
 
 def compile_regression_model(model, learning_rate, metrics=None):
     model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+        optimizer=keras.optimizers.Adam(learning_rate=learning_rate, amsgrad=True),
         loss=lambda y, normal_dist: -normal_dist.log_prob(y),
         metrics=metrics,
     )

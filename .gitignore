@@ -2,6 +2,7 @@ data/
 saved_models/
 saved_models_*/
 hyperparameters/
+hyperband_logs/
 report/
 model.png
 
