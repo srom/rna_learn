@@ -16,8 +16,11 @@ def main():
     """
     logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
 
-    strain_ids_path = os.path.join(os.getcwd(), 'data/bac_dive/bac_dive_strain_ids.csv')
-    output_path = os.path.join(os.getcwd(), 'data/bac_dive/species.csv')
+    strain_ids_path = os.path.join(os.getcwd(), 'data/bac_dive/bacdive_strain_ids_all_but_mesophiles.csv')
+    whitelist_path = os.path.join(os.getcwd(), 'data/bac_dive/whitelist_species.csv')
+    output_path = os.path.join(os.getcwd(), 'data/bac_dive/species_no_mesophiles.csv')
+
+    white_list_species = {s.lower().strip() for s in pd.read_csv(whitelist_path)['specie_name'].values}
 
     flush_every = 50
     min_time_between_req_s = 0.5
@@ -37,6 +40,8 @@ def main():
     prev_time = time.time()
     seen_species = set()
     for i, strain_id in enumerate(strain_ids):
+        logger.info(f'\t{i+1} / {n_strains} | {strain_id}')
+
         elapsed = time.time() - prev_time
         if elapsed < min_time_between_req_s:
             time.sleep(min_time_between_req_s - elapsed)
@@ -48,13 +53,17 @@ def main():
         except (KeyboardInterrupt, SystemExit):
             raise
         except requests.exceptions.RequestException:
-            logger.exception(f'{i+1} / {n_strains} | {strain_id} | exception raised while fetching')
+            logger.exception(f'Exception raised while fetching')
             continue
         except Exception:
-            logger.exception(f'{i+1} / {n_strains} | {strain_id} | exception raised while parsing')
+            logger.exception(f'Exception raised while parsing')
             continue
 
-        if specie_name in seen_species:
+        if specie_name is None:
+            continue
+        elif specie_name in seen_species:
+            continue
+        elif specie_name.lower() not in white_list_species:
             continue
         else:
             seen_species.add(specie_name)
@@ -67,7 +76,7 @@ def main():
             temperature_range,
         ])
 
-        logger.info(f'{i+1} / {n_strains} | {strain_id} | {domain} | {specie_name} | {temperature_range} | {temperature}°C')
+        logger.info(f'{domain} | {specie_name} | {temperature_range} | {temperature}°C')
 
         if len(output_data_batch) >= flush_every:
             flush_data(output_data_batch, output_path, columns, include_header=first_write)
@@ -102,10 +111,24 @@ def parse_strain(strain_id):
         class_='section',
     )
 
-    domain = soup.find('td', string='Domain').find_next_sibling('td').string.strip()
-    specie_name = soup.find('td', string='Species').find_next_sibling('td').string.strip()
-    temperature = float(
-        section.find('td', string='growth').find_next_sibling('td').string.replace('  ̊C', '').strip())
+    domain = soup.find('td', string='Domain').find_next_sibling('td').string
+    specie_name = soup.find('td', string='Species').find_next_sibling('td').string
+    temperature_str = section.find(
+        'td', string='growth').find_next_sibling('td').string.replace('  ̊C', '')
+
+    if domain is None or specie_name is None or temperature_str is None:
+        return None, None, None, None
+    else:
+        domain = domain.strip()
+        specie_name = specie_name.strip()
+        temperature_str = temperature_str.strip()
+
+    if '-' in temperature_str:
+        t1, t2 = temperature_str.split('-')
+        temperature = round((float(t1) + float(t2)) / 2, 1)
+    else:
+        temperature = round(float(temperature_str), 1)
+
     temperature_range = section.find('td', string='Temperature range').find_next_sibling('td').string.strip()
 
     return domain, specie_name, temperature, temperature_range
