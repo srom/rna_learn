@@ -19,7 +19,7 @@ from .transform import (
     combine_sequences,
 )
 from .model import MeanAbsoluteError
-from .utilities import generate_random_run_id
+from .utilities import generate_random_run_id, BioSequence
 
 
 logger = logging.getLogger(__name__)
@@ -107,37 +107,50 @@ def main():
     parser.add_argument('--n_epochs', type=int, default=200)
     parser.add_argument('--factor', type=int, default=3)
     parser.add_argument('--hyperband_iterations', type=int, default=1)
+    parser.add_argument('--dataset_path', type=str, default=None)
     parser.add_argument('--run_id', type=str, default=None)
+    parser.add_argument('--random_seed', type=int, default=444)
     args = parser.parse_args()
+
+    alphabet_type = 'protein'
+    alphabet = ALPHABET_PROTEIN
 
     batch_size = args.batch_size
     n_epochs = args.n_epochs
     factor = args.factor
     hyperband_iterations = args.hyperband_iterations
     run_id = args.run_id
-    seed = 444
+    dataset_path = args.dataset_path
+    seed = args.random_seed
 
     if run_id is None:
         run_id = generate_random_run_id()
 
     logger.info(f'Loading data (run_id: {run_id})')
 
-    input_path = os.path.join(os.getcwd(), 'data/gtdb/dataset_train.csv')
-    dataset_df = pd.read_csv(input_path)
+    if dataset_path is None:
+        dataset_path = os.path.join(os.getcwd(), 'data/gtdb/dataset_full_train.csv')
 
-    alphabet = ALPHABET_PROTEIN
-    raw_sequences = dataset_df['amino_acid_sequence'].values
+    dataset_df = pd.read_csv(dataset_path)
 
-    x = sequence_embedding(raw_sequences, alphabet, dtype='float32')
+    raw_sequences = np.array([
+        s[:-1]  # Removing stop amino acid at the end
+        for s in dataset_df['amino_acid_sequence'].values
+    ])
+
     y = dataset_df['temperature'].values.astype('float32')
 
     logger.info('Split train and test set')
-    x_train, y_train, x_test, y_test, train_idx, test_idx = split_train_test_set(
-        x, y, test_ratio=0.2, return_indices=True, seed=seed)
+    x_raw_train, y_train, x_raw_test, y_test, train_idx, test_idx = split_train_test_set(
+        raw_sequences, y, test_ratio=0.2, return_indices=True, seed=seed)
 
     mean, std = np.mean(y), np.std(y)
     y_test_norm = normalize(y_test, mean, std)
     y_train_norm = normalize(y_train, mean, std)
+
+    x_test = sequence_embedding(x_raw_test, alphabet, dtype='float32')
+
+    train_sequence = BioSequence(x_raw_train, y_train_norm, batch_size, alphabet)
 
     logger.info('Hyperparameters optimisation')
 
@@ -151,14 +164,12 @@ def main():
         objective=kt.Objective('val_loss', 'min'),
         factor=factor,
         hyperband_iterations=hyperband_iterations,
-        project_name=f'hyperband_logs/{run_id}',
+        project_name=f'hyperband_logs/{alphabet_type}/{run_id}',
     )
 
     hypermodel.search(
-        x_train,
-        y_train_norm,
+        train_sequence,
         validation_data=(x_test, y_test_norm),
-        batch_size=batch_size,
         epochs=n_epochs,
         callbacks=[keras.callbacks.EarlyStopping(patience=5)]
     )
