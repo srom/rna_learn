@@ -1,8 +1,11 @@
-import string
 import json
+import math
+import string
 
 import numpy as np
 import tensorflow as tf
+
+from .transform import sequence_embedding
 
 
 class SaveModelCallback(tf.keras.callbacks.Callback):
@@ -46,3 +49,39 @@ def generate_random_run_id():
     random_slug_chars = np.random.choice(chars, size=5, replace=True)
     random_slug = ''.join(random_slug_chars)
     return f'run_{random_slug}'
+
+
+class BioSequence(tf.keras.utils.Sequence):
+
+    def __init__(self, x_raw, y, batch_size, alphabet, random_seed=None):
+        self.rs = np.random.RandomState(random_seed)
+
+        idx = list(range(len(x_raw)))
+        shuffled_idx = self.rs.choice(idx, size=len(idx), replace=False)
+
+        self.x_raw = x_raw[shuffled_idx]
+        self.y = y[shuffled_idx]
+
+        self.batch_size = batch_size
+        self.alphabet = alphabet
+
+    def __len__(self):
+        return math.ceil(len(self.x_raw) / self.batch_size)
+
+    def __getitem__(self, idx):
+        batch_x_raw = self.x_raw[idx * self.batch_size:(idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        batch_x = sequence_embedding(batch_x_raw, self.alphabet, dtype='float64')
+
+        return batch_x, batch_y, [None]
+
+    def on_epoch_end(self):
+        """
+        Re-shuffle ahead of next epoch.
+        """
+        idx = list(range(len(self.x_raw)))
+        shuffled_idx = self.rs.choice(idx, size=len(idx), replace=False)
+
+        self.x_raw = self.x_raw[shuffled_idx]
+        self.y = self.y[shuffled_idx]

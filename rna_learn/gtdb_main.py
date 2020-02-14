@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from .alphabet import ALPHABET_DNA, ALPHABET_PROTEIN
 from .transform import (
     sequence_embedding, 
     normalize, denormalize,
@@ -19,25 +20,17 @@ from .transform import (
 from .model import (
     conv1d_regression_model, 
     conv1d_densenet_regression_model, 
-    dual_stream_conv1d_densenet_regression,
     compile_regression_model, 
     MeanAbsoluteError,
 )
-from .utilities import SaveModelCallback, generate_random_run_id
+from .utilities import (
+    SaveModelCallback, 
+    generate_random_run_id,
+    BioSequence,
+)
 
 
 logger = logging.getLogger(__name__)
-
-
-ALPHABET_DNA = [
-    'A', 'C', 'G', 'T',
-]
-ALPHABET_PROTEIN = [
-    'A', 'C', 'D', 'E', 'F',
-    'G', 'H', 'I', 'K', 'L',
-    'M', 'N', 'P', 'Q', 'R', 
-    'S', 'T', 'V', 'W', 'Y',
-]
 
 
 def main():
@@ -65,13 +58,13 @@ def main():
     elif run_id is None and not resume:
         run_id = generate_random_run_id()
 
-    logger.info(f'Run {run_id}')
+    logger.info(f'Run {run_id} - {alphabet_type}')
 
-    input_path = os.path.join(os.getcwd(), 'data/gtdb/dataset_train.csv')
-    output_folder = os.path.join(os.getcwd(), f'saved_models_gtdb/{run_id}/')
+    input_path = os.path.join(os.getcwd(), 'data/gtdb/dataset_full_train.csv')
+    output_folder = os.path.join(os.getcwd(), f'saved_models_gtdb/{alphabet_type}/{run_id}/')
     model_path = os.path.join(output_folder, f'model.h5')
     metadata_path = os.path.join(output_folder, f'metadata.json')
-    log_dir = os.path.join(os.getcwd(), f'summary_log/gtdb/{run_id}')
+    log_dir = os.path.join(os.getcwd(), f'summary_log/gtdb/{alphabet_type}/{run_id}')
 
     for dir_path in [output_folder, log_dir]:
         try:
@@ -114,51 +107,36 @@ def main():
     dataset_df = pd.read_csv(input_path)
 
     if alphabet_type == 'dna':
-        raw_sequences = dataset_df['mrna_candidate_sequence'].values
+        raw_sequences = dataset_df['nucleotide_sequence'].values
     else:
-        raw_sequences = dataset_df['amino_acid_sequence'].values
-
-    x = sequence_embedding(raw_sequences, alphabet, dtype='float64')
-
-    if alphabet_type == 'dna':
-        aa_raw = dataset_df['amino_acid_sequence'].values
-        aa = sequence_embedding(aa_raw, ALPHABET_PROTEIN, dtype='float64')
-        x = combine_sequences(x, aa)
-        alphabet_size_1 = len(ALPHABET_DNA)
-        alphabet_size_2 = len(ALPHABET_PROTEIN)
-    else:
-        alphabet_size = len(alphabet)
+        raw_sequences = np.array([
+            s[:-1]  # Removing stop amino acid at the end
+            for s in dataset_df['amino_acid_sequence'].values
+        ])
 
     y = dataset_df['temperature'].values.astype('float64')
 
     logger.info('Split train and test set')
-    x_train, y_train, x_test, y_test, train_idx, test_idx = split_train_test_set(
-        x, y, test_ratio=0.2, return_indices=True, seed=metadata['seed'])
+    x_raw_train, y_train, x_raw_test, y_test, train_idx, test_idx = split_train_test_set(
+        raw_sequences, y, test_ratio=0.2, return_indices=True, seed=metadata['seed'])
 
     mean, std = np.mean(y), np.std(y)
     y_test_norm = normalize(y_test, mean, std)
     y_train_norm = normalize(y_train, mean, std)
 
-    if alphabet_type == 'dna':
-        model = dual_stream_conv1d_densenet_regression(
-            alphabet_size_1=alphabet_size_1, 
-            alphabet_size_2=alphabet_size_2, 
-            growth_rate=metadata['growth_rate'],
-            n_layers=metadata['n_layers'],
-            kernel_sizes=metadata['kernel_sizes'],
-            l2_reg=metadata['l2_reg'],
-            dropout=metadata['dropout'],
-        )
-    else:
-        model = conv1d_densenet_regression_model(
-            alphabet_size=alphabet_size, 
-            growth_rate=metadata['growth_rate'],
-            n_layers=metadata['n_layers'],
-            kernel_sizes=metadata['kernel_sizes'],
-            l2_reg=metadata['l2_reg'],
-            dropout=metadata['dropout'],
-        )
+    x_test = sequence_embedding(x_raw_test, alphabet, dtype='float64')
 
+    train_sequence = BioSequence(x_raw_train, y_train_norm, batch_size, alphabet)
+
+    model = conv1d_densenet_regression_model(
+        alphabet_size=len(alphabet), 
+        growth_rate=metadata['growth_rate'],
+        n_layers=metadata['n_layers'],
+        kernel_sizes=metadata['kernel_sizes'],
+        l2_reg=metadata['l2_reg'],
+        dropout=metadata['dropout'],
+        masking=True,
+    )
     compile_regression_model(
         model, 
         learning_rate=learning_rate,
@@ -177,10 +155,8 @@ def main():
 
     logger.info(f'Training run {run_id}')
     model.fit(
-        x_train,
-        y_train_norm,
+        train_sequence,
         validation_data=(x_test, y_test_norm),
-        batch_size=batch_size,
         epochs=epochs,
         initial_epoch=initial_epoch,
         verbose=1,

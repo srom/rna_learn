@@ -161,6 +161,7 @@ def conv1d_densenet_regression_model(
     strides=None,
     l2_reg=1e-4,
     dropout=0.5,
+    masking=False,
 ):
     if len(kernel_sizes) != n_layers:
         raise ValueError('Kernel sizes argument must specify one kernel size per layer')
@@ -172,6 +173,11 @@ def conv1d_densenet_regression_model(
         raise ValueError('Strides argument must specify one stride per layer')
 
     inputs = keras.Input(shape=(None, alphabet_size), name='sequence')
+
+    mask = None
+    if masking:
+        mask_value = np.array([0.] * alphabet_size)
+        mask = keras.layers.Masking(mask_value=mask_value).compute_mask(inputs)
 
     x = inputs
     for l in range(n_layers):
@@ -190,7 +196,7 @@ def conv1d_densenet_regression_model(
 
         x = keras.layers.concatenate([x, out], axis=2, name=f'concat_{l+1}')
 
-    x = keras.layers.GlobalAveragePooling1D(name='logits')(x)
+    x = keras.layers.GlobalAveragePooling1D(name='logits')(x, mask=mask)
     x = keras.layers.Dropout(dropout)(x)
     x = keras.layers.Dense(
         units=2, 

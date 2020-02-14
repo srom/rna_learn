@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 
-def sequence_embedding(x, alphabet, unknown_char='-', dtype='float32'):
+def sequence_embedding(x, alphabet, unknown_chars=('-', 'X'), dtype='float32'):
     """
     Args:
       x: sequence of strings
@@ -12,7 +12,7 @@ def sequence_embedding(x, alphabet, unknown_char='-', dtype='float32'):
     """
     mask_value = np.array([0] * len(alphabet), dtype=dtype)
 
-    x_one_hot = one_hot_encode_sequences(x, alphabet, unknown_char)
+    x_one_hot = one_hot_encode_sequences(x, alphabet, unknown_chars)
 
     return tf.keras.preprocessing.sequence.pad_sequences(
         x_one_hot, 
@@ -22,8 +22,11 @@ def sequence_embedding(x, alphabet, unknown_char='-', dtype='float32'):
     )
 
 
-def one_hot_encode_sequences(x, alphabet, unknown_char):
-    lookup = {ord(unknown_char): [0.] * len(alphabet)}
+def one_hot_encode_sequences(x, alphabet, unknown_chars):
+    lookup = {
+        ord(unknown_char): [0.] * len(alphabet) 
+        for unknown_char in unknown_chars
+    }
     for i, l in enumerate(alphabet):
         key = ord(l)
         val = [0.] * len(alphabet)
