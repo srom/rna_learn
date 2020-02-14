@@ -51,6 +51,9 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
             values=(1e-3, 5e-4, 1e-4, 5e-5),
         )
 
+        mask_value = np.array([0.] * n_inputs)
+        mask = keras.layers.Masking(mask_value=mask_value).compute_mask(inputs)
+
         x = inputs
         for l in range(n_layers):
             kernel_size = hp.Int(
@@ -71,7 +74,7 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
 
             x = keras.layers.concatenate([x, out], axis=2, name=f'concat_{l+1}')
 
-        x = keras.layers.GlobalAveragePooling1D(name='logits')(x)
+        x = keras.layers.GlobalAveragePooling1D(name='logits')(x, mask=mask)
         x = keras.layers.Dropout(dropout)(x)
         x = keras.layers.Dense(
             units=2, 
