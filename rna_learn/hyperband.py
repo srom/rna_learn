@@ -42,17 +42,13 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
             max_value=20,
             step=2,
         )
-        l2_reg_conv = hp.Choice(
-            'l2_reg_conv',
-            values=(1e-3, 5e-4, 1e-4, 5e-5, 1e-5),
-        )
-        l2_reg_mean_std = hp.Choice(
-            'l2_reg_mean_std',
-            values=(1e-3, 5e-4, 1e-4, 5e-5, 1e-5),
+        l2_reg = hp.Choice(
+            'l2_reg',
+            values=(5e-4, 1e-4, 5e-5, 1e-5, 5e-6),
         )
         learning_rate = hp.Choice(
             'learning_rate',
-            values=(1e-3, 5e-4, 1e-4, 5e-5, 1e-5),
+            values=(1e-3, 5e-4, 1e-4, 5e-5),
         )
 
         x = inputs
@@ -60,7 +56,7 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
             kernel_size = hp.Int(
                 f'kernel_size_l{l+1}',
                 min_value=2,
-                max_value=5,
+                max_value=10,
                 step=1,
             )
 
@@ -69,7 +65,7 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
                 kernel_size=kernel_size,
                 padding='same',
                 activation='relu',
-                kernel_regularizer=keras.regularizers.l2(l=l2_reg_conv),
+                kernel_regularizer=keras.regularizers.l2(l=l2_reg),
                 name=f'conv_{l+1}'
             )(x)
 
@@ -79,7 +75,7 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
         x = keras.layers.Dropout(dropout)(x)
         x = keras.layers.Dense(
             units=2, 
-            kernel_regularizer=keras.regularizers.l2(l=l2_reg_mean_std),
+            kernel_regularizer=keras.regularizers.l2(l=l2_reg),
             name='mean_and_std'
         )(x)
 
