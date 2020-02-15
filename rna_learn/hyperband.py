@@ -111,6 +111,7 @@ def main():
     parser.add_argument('--run_id', type=str, default=None)
     parser.add_argument('--random_seed', type=int, default=444)
     parser.add_argument('--verbose', type=int, default=1)
+    parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
     alphabet_type = 'protein'
@@ -124,6 +125,7 @@ def main():
     dataset_path = args.dataset_path
     seed = args.random_seed
     verbose = args.verbose
+    dtype = args.dtype
 
     if run_id is None:
         run_id = generate_random_run_id()
@@ -140,7 +142,7 @@ def main():
         for s in dataset_df['amino_acid_sequence'].values
     ])
 
-    y = dataset_df['temperature'].values.astype('float32')
+    y = dataset_df['temperature'].values.astype(dtype)
 
     logger.info('Split train and test set')
     x_raw_train, y_train, x_raw_test, y_test, train_idx, test_idx = split_train_test_set(
@@ -150,13 +152,15 @@ def main():
     y_test_norm = normalize(y_test, mean, std)
     y_train_norm = normalize(y_train, mean, std)
 
-    x_test = sequence_embedding(x_raw_test, alphabet, dtype='float32')
+    x_test = sequence_embedding(x_raw_test, alphabet, dtype=dtype)
 
     train_sequence = BioSequence(x_raw_train, y_train_norm, batch_size, alphabet)
 
     logger.info('Hyperparameters optimisation')
 
     metrics = [MeanAbsoluteError(mean, std)]
+
+    tf.keras.backend.set_floatx(dtype)
 
     build_model_fn = hyperband_densenet_model(n_inputs=len(alphabet), metrics=metrics)
 
