@@ -110,6 +110,7 @@ def main():
     parser.add_argument('--dataset_path', type=str, default=None)
     parser.add_argument('--run_id', type=str, default=None)
     parser.add_argument('--random_seed', type=int, default=444)
+    parser.add_argument('--verbose', type=int, default=1)
     args = parser.parse_args()
 
     alphabet_type = 'protein'
@@ -122,6 +123,7 @@ def main():
     run_id = args.run_id
     dataset_path = args.dataset_path
     seed = args.random_seed
+    verbose = args.verbose
 
     if run_id is None:
         run_id = generate_random_run_id()
@@ -171,7 +173,8 @@ def main():
         train_sequence,
         validation_data=(x_test, y_test_norm),
         epochs=n_epochs,
-        callbacks=[keras.callbacks.EarlyStopping(patience=5)]
+        callbacks=[keras.callbacks.EarlyStopping(patience=5)],
+        verbose=verbose,
     )
 
     logger.info('DONE')
