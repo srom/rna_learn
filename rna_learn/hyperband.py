@@ -48,7 +48,7 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
         )
         learning_rate = hp.Choice(
             'learning_rate',
-            values=(1e-3, 5e-4, 1e-4, 5e-5),
+            values=(5e-3, 1e-3, 5e-4, 1e-4, 5e-5),
         )
 
         mask_value = np.array([0.] * n_inputs)
@@ -103,7 +103,7 @@ def main():
     logger.info('Hyperparameters optimisation with Hyperband')
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_epochs', type=int, default=200)
     parser.add_argument('--factor', type=int, default=3)
     parser.add_argument('--hyperband_iterations', type=int, default=1)
