@@ -1,5 +1,4 @@
-https://blog.abelotech.com/posts/how-download-github-tarball-using-curl-wget/
-
-https://gist.github.com/eddex/707f9cbadfaec9d419a5dfbcc2042611
-
-https://docs.nvidia.com/deeplearning/sdk/cudnn-install/index.html
+- Launch ubuntu 18.04 instance with GPU (e.g. p2.xlarge)
+- Install CUDA 10.1: https://gist.github.com/eddex/707f9cbadfaec9d419a5dfbcc2042611
+- Install cuDNN 7.6: https://docs.nvidia.com/deeplearning/sdk/cudnn-install/index.html
+- Fetch repository: `curl -L https://github.com/srom/rna_learn/tarball/master | tar xz`
