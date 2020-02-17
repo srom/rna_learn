@@ -103,6 +103,7 @@ def main():
     logger.info('Hyperparameters optimisation with Hyperband')
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('alphabet_type', choices=['dna', 'protein'])
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_epochs', type=int, default=200)
     parser.add_argument('--factor', type=int, default=3)
@@ -114,9 +115,7 @@ def main():
     parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
-    alphabet_type = 'protein'
-    alphabet = ALPHABET_PROTEIN
-
+    alphabet_type = args.alphabet_type
     batch_size = args.batch_size
     n_epochs = args.n_epochs
     factor = args.factor
@@ -130,17 +129,23 @@ def main():
     if run_id is None:
         run_id = generate_random_run_id()
 
-    logger.info(f'Loading data (run_id: {run_id})')
+    logger.info(f'Alphabet: {alphabet_type} | run_id: {run_id}')
 
     if dataset_path is None:
         dataset_path = os.path.join(os.getcwd(), 'data/gtdb/dataset_full_train.csv')
 
+    logger.info(f'Loading data')
     dataset_df = pd.read_csv(dataset_path)
 
-    raw_sequences = np.array([
-        s[:-1]  # Removing stop amino acid at the end
-        for s in dataset_df['amino_acid_sequence'].values
-    ])
+    if alphabet_type == 'dna':
+        alphabet = ALPHABET_DNA
+        raw_sequences = dataset_df['nucleotide_sequence'].values
+    else:
+        alphabet = ALPHABET_PROTEIN
+        raw_sequences = np.array([
+            s[:-1]  # Removing stop amino acid at the end
+            for s in dataset_df['amino_acid_sequence'].values
+        ])
 
     y = dataset_df['temperature'].values.astype(dtype)
 
