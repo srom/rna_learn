@@ -53,13 +53,14 @@ def generate_random_run_id():
 
 class BioSequence(tf.keras.utils.Sequence):
 
-    def __init__(self, x_raw, y, batch_size, alphabet, random_seed=None):
+    def __init__(self, x_raw, y, batch_size, alphabet, x_extras=None, random_seed=None):
         self.rs = np.random.RandomState(random_seed)
 
         idx = list(range(len(x_raw)))
         shuffled_idx = self.rs.choice(idx, size=len(idx), replace=False)
 
         self.x_raw = x_raw[shuffled_idx]
+        self.x_extras = x_extras
         self.y = y[shuffled_idx]
 
         self.batch_size = batch_size
@@ -69,12 +70,22 @@ class BioSequence(tf.keras.utils.Sequence):
         return math.ceil(len(self.x_raw) / self.batch_size)
 
     def __getitem__(self, idx):
-        batch_x_raw = self.x_raw[idx * self.batch_size:(idx + 1) * self.batch_size]
-        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+        a = idx * self.batch_size
+        b = (idx + 1) * self.batch_size
+
+        batch_x_raw = self.x_raw[a:b]
+        batch_y = self.y[a:b]
 
         batch_x = sequence_embedding(batch_x_raw, self.alphabet, dtype='float64')
 
-        return batch_x, batch_y, [None]
+        batch_x_extras = None
+        if self.x_extras is not None:
+            batch_x_extras = self.x_extras[a:b]
+
+        if self.x_extras is None:
+            return batch_x, batch_y, [None]
+        else:
+            return (batch_x, batch_x_extras), batch_y, [None]
 
     def on_epoch_end(self):
         """
@@ -85,3 +96,6 @@ class BioSequence(tf.keras.utils.Sequence):
 
         self.x_raw = self.x_raw[shuffled_idx]
         self.y = self.y[shuffled_idx]
+
+        if self.x_extras is not None:
+            self.x_extras = self.x_extras[shuffled_idx]

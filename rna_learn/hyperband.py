@@ -1,6 +1,7 @@
 import argparse
 import os
 import logging
+import math
 
 import numpy as np
 import pandas as pd
@@ -25,31 +26,59 @@ from .utilities import generate_random_run_id, BioSequence
 logger = logging.getLogger(__name__)
 
 
-def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
+def hyperband_densenet_model(
+    n_inputs,
+    dropout=0.5,
+    metrics=None,
+    n_extras=0,
+    init_n_layers=None,
+    init_growth_rate=None,
+    init_l2_reg=None,
+    init_learning_rate=None,
+):
 
     def build_model(hp):
         inputs = keras.Input(shape=(None, n_inputs), name='sequence')
 
-        n_layers = hp.Int(
-            'n_layers',
-            min_value=2,
-            max_value=15,
-            step=2,
-        )
-        growth_rate = hp.Int(
-            'growth_rate',
-            min_value=4,
-            max_value=15,
-            step=2,
-        )
-        l2_reg = hp.Choice(
-            'l2_reg',
-            values=(5e-4, 1e-4, 5e-5, 1e-5, 5e-6),
-        )
-        learning_rate = hp.Choice(
-            'learning_rate',
-            values=(5e-3, 1e-3, 5e-4, 1e-4, 5e-5),
-        )
+        inputs_extra = None
+        if n_extras > 0:
+            inputs_extra = keras.Input(shape=(n_extras,), name='x_extra')
+
+        if init_n_layers is None:
+            n_layers = hp.Int(
+                'n_layers',
+                min_value=2,
+                max_value=15,
+                step=2,
+            )
+        else:
+            n_layers = init_n_layers
+
+        if init_growth_rate is None:
+            growth_rate = hp.Int(
+                'growth_rate',
+                min_value=4,
+                max_value=15,
+                step=2,
+            )
+        else:
+            growth_rate = init_growth_rate
+
+        if init_l2_reg is None:
+            l2_reg = hp.Choice(
+                'l2_reg',
+                values=(5e-4, 1e-4, 5e-5, 1e-5, 5e-6),
+            )
+        else:
+            l2_reg = init_l2_reg
+
+        if init_learning_rate is None:
+            learning_rate = hp.Choice(
+                'learning_rate',
+                values=(5e-3, 1e-3, 5e-4, 1e-4, 5e-5),
+            )
+        else:
+            learning_rate = init_learning_rate
 
         mask_value = np.array([0.] * n_inputs)
         mask = keras.layers.Masking(mask_value=mask_value).compute_mask(inputs)
@@ -75,6 +104,10 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
             x = keras.layers.concatenate([x, out], axis=2, name=f'concat_{l+1}')
 
         x = keras.layers.GlobalAveragePooling1D(name='logits')(x, mask=mask)
+
+        if n_extras > 0:
+            x = keras.layers.concatenate([x, inputs_extra], axis=1, name=f'concat_extras')
+
         x = keras.layers.Dropout(dropout)(x)
         x = keras.layers.Dense(
             units=2, 
@@ -84,7 +117,12 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
 
         outputs = tfp.layers.IndependentNormal(1)(x)
 
-        model = keras.Model(inputs=inputs, outputs=outputs)
+        if n_extras > 0:
+            final_inputs = [inputs, inputs_extra]
+        else:
+            final_inputs = inputs
+
+        model = keras.Model(inputs=final_inputs, outputs=outputs)
 
         model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=learning_rate, amsgrad=True),
@@ -113,6 +151,7 @@ def main():
     parser.add_argument('--random_seed', type=int, default=444)
     parser.add_argument('--verbose', type=int, default=1)
     parser.add_argument('--dtype', type=str, default='float32')
+    parser.add_argument('--extra_prot_run_id', type=str)
     args = parser.parse_args()
 
     alphabet_type = args.alphabet_type
@@ -125,6 +164,7 @@ def main():
     seed = args.random_seed
     verbose = args.verbose
     dtype = args.dtype
+    extra_prot_run_id = args.extra_prot_run_id
 
     if run_id is None:
         run_id = generate_random_run_id()
@@ -159,7 +199,34 @@ def main():
 
     x_test = sequence_embedding(x_raw_test, alphabet, dtype=dtype)
 
-    train_sequence = BioSequence(x_raw_train, y_train_norm, batch_size, alphabet)
+    x_extras_train, x_extras_test = None, None
+    if extra_prot_run_id is not None:
+        extra_model_path = os.path.join(
+            os.getcwd(), 
+            f'hyperband_logs/protein/{extra_prot_run_id}/best_model.h5',
+        )
+        logger.info(f'Loading extra protein logits from {extra_model_path}')
+        extra_logits_model = tf.keras.models.load_model(extra_model_path)
+
+        logger.info('Computing forward pass from extra logits model')
+
+        extra_seq = np.array([
+            s[:-1]
+            for s in dataset_df['amino_acid_sequence'].values
+        ])
+        x_seq_extras = sequence_embedding(extra_seq, ALPHABET_PROTEIN, dtype=dtype)
+
+        x_extras = load_extra_logits(extra_logits_model, x_seq_extras)
+
+        x_extras_train = x_extras[train_idx]
+        x_extras_test = x_extras[test_idx]
+
+    train_sequence = BioSequence(x_raw_train, y_train_norm, batch_size, alphabet, x_extras=x_extras_train)
+
+    if extra_prot_run_id is None:
+        validation_data = (x_test, y_test_norm)
+    else:
+        validation_data = ((x_test, x_extras_test), y_test_norm)
 
     logger.info('Hyperparameters optimisation')
 
@@ -167,7 +234,15 @@ def main():
 
     tf.keras.backend.set_floatx(dtype)
 
-    build_model_fn = hyperband_densenet_model(n_inputs=len(alphabet), metrics=metrics)
+    build_model_fn = hyperband_densenet_model(
+        n_inputs=len(alphabet), 
+        metrics=metrics,
+        n_extras=x_extras_train.shape[1],
+        init_n_layers=12,
+        init_growth_rate=12,
+        init_l2_reg=1e-5,
+        init_learning_rate=1e-03,
+    )
 
     hypermodel = Hyperband(
         build_model_fn,
@@ -180,13 +255,28 @@ def main():
 
     hypermodel.search(
         train_sequence,
-        validation_data=(x_test, y_test_norm),
+        validation_data=validation_data,
         epochs=n_epochs,
         callbacks=[keras.callbacks.EarlyStopping(patience=5)],
         verbose=verbose,
     )
 
     logger.info('DONE')
+
+
+def load_extra_logits(extra_logits_model, x_seq_extras, n_parts=20):
+    batch_size = int(math.ceil(len(x_seq_extras) / 20))
+
+    outputs = []
+    for i in range(n_parts):
+        logger.info(f'Part {i+1} / {n_parts}')
+        a = i * batch_size
+        b = (i + 1) * batch_size
+
+        o = extra_logits_model(x_seq_extras[a:b])
+        outputs.append(o)
+
+    return np.concatenate(outputs, axis=0)
 
 
 if __name__ == '__main__':
