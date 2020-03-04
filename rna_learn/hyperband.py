@@ -33,13 +33,13 @@ def hyperband_densenet_model(n_inputs, dropout=0.5, metrics=None):
         n_layers = hp.Int(
             'n_layers',
             min_value=2,
-            max_value=20,
+            max_value=15,
             step=2,
         )
         growth_rate = hp.Int(
             'growth_rate',
             min_value=4,
-            max_value=20,
+            max_value=15,
             step=2,
         )
         l2_reg = hp.Choice(
