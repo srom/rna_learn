@@ -209,6 +209,134 @@ def conv1d_densenet_regression_model(
     return keras.Model(inputs=inputs, outputs=outputs)
 
 
+def variational_conv1d_densenet(
+    encoding_size,
+    alphabet_size,
+    growth_rate,
+    n_layers,
+    kernel_sizes,
+    strides=None,
+    decoder_n_hidden=100,
+    l2_reg=1e-4,
+    dropout=0.5,
+):
+    prior = tfp.distributions.Independent(
+        tfp.distributions.Normal(loc=tf.zeros(encoding_size), scale=1),
+        reinterpreted_batch_ndims=1,
+    )
+
+    encoder = variational_conv1d_densenet_encoder(
+        encoding_size, 
+        prior, 
+        alphabet_size,
+        growth_rate,
+        n_layers,
+        kernel_sizes,
+        strides=strides,
+        l2_reg=l2_reg,
+        dropout=dropout,
+    )
+
+    decoder = variational_conv1d_densenet_decoder(
+        encoding_size,
+        n_hidden=decoder_n_hidden,
+        dropout=dropout,
+    )
+
+    variational_model = keras.Model(inputs=encoder.inputs, outputs=decoder(encoder.outputs))
+
+    return prior, encoder, decoder, variational_model
+
+
+def variational_conv1d_densenet_encoder(
+    encoding_size,
+    prior,
+    alphabet_size,
+    growth_rate,
+    n_layers,
+    kernel_sizes,
+    strides=None,
+    l2_reg=1e-4,
+    dropout=0.5,
+):
+    if len(kernel_sizes) != n_layers:
+        raise ValueError('Kernel sizes argument must specify one kernel size per layer')
+
+    if strides is None:
+        strides = [1] * n_layers
+
+    if len(strides) != n_layers:
+        raise ValueError('Strides argument must specify one stride per layer')
+
+    n_mvn_params = tfp.layers.MultivariateNormalTriL.params_size(encoding_size)
+
+    inputs = keras.Input(shape=(None, alphabet_size), name='sequence')
+
+    mask_value = np.array([0.] * alphabet_size)
+    mask = keras.layers.Masking(mask_value=mask_value).compute_mask(inputs)
+
+    x = inputs
+    for l in range(n_layers):
+        kernel_size = kernel_sizes[l]
+        stride = strides[l]
+
+        out = keras.layers.Conv1D(
+            filters=growth_rate, 
+            kernel_size=kernel_size,
+            strides=stride,
+            padding='same',
+            activation='relu',
+            kernel_regularizer=keras.regularizers.l2(l=l2_reg),
+            name=f'encoder_conv_{l+1}'
+        )(x)
+
+        x = keras.layers.concatenate([x, out], axis=2, name=f'concat_{l+1}')
+
+    x = keras.layers.GlobalAveragePooling1D(name='logits')(x, mask=mask)
+    x = keras.layers.Dropout(dropout)(x)
+    x = keras.layers.Dense(
+        units=n_mvn_params, 
+        kernel_regularizer=keras.regularizers.l2(l=l2_reg),
+        name='encoder_dense_linear'
+    )(x)
+
+    encoded_outputs = tfp.layers.MultivariateNormalTriL(
+        encoding_size,
+        activity_regularizer=tfp.layers.KLDivergenceRegularizer(prior, weight=1.0)
+    )(x)
+
+    return keras.Model(inputs=inputs, outputs=encoded_outputs)
+
+
+def variational_conv1d_densenet_decoder(
+    encoding_size,
+    n_layers=1,
+    n_hidden=100,
+    dropout=0.5,
+):
+    encoded_inputs = keras.layers.Input(shape=(encoding_size,))
+
+    x = encoded_inputs
+    for n in range(n_layers):
+        x = keras.layers.Dense(n_hidden, activation='relu', name=f'decoder_dense_relu_{n+1}')(x)
+        x = keras.layers.Dropout(dropout)(x)
+
+    x = keras.layers.Dense(2, name='decoder_dense_linear')(x)
+
+    decoded_outputs = tfp.layers.IndependentNormal(1)(x)
+
+    return keras.Model(inputs=encoded_inputs, outputs=decoded_outputs)
+
+
+def compile_variational_model(model, learning_rate, metrics=None):
+    negative_log_likelihood = lambda x, rv_x: -rv_x.log_prob(x)
+    model.compile(
+        optimizer=tf.optimizers.Adam(learning_rate=learning_rate, amsgrad=True),
+        loss=negative_log_likelihood,
+        metrics=metrics,
+    )
+
+
 def dual_stream_conv1d_densenet_regression(
     alphabet_size_1,
     alphabet_size_2,

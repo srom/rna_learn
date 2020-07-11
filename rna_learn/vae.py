@@ -33,7 +33,7 @@ def make_encoder(n_inputs, encoding_size, n_hidden, n_layers, dropout, prior):
         activity_regularizer=tfp.layers.KLDivergenceRegularizer(prior, weight=1.0)
     )(x)
 
-    return  keras.Model(inputs=inputs, outputs=encoded_outputs)
+    return keras.Model(inputs=inputs, outputs=encoded_outputs)
 
 
 def make_decoder(n_inputs, encoding_size, n_hidden, n_layers, dropout):
