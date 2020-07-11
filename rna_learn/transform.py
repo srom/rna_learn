@@ -3,6 +3,8 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 
+from .alphabet import CODON_REDUNDANCY
+
 
 def sequence_embedding(x, alphabet, unknown_chars=('-', 'X'), dtype='float32'):
     """
@@ -150,3 +152,36 @@ def normalize(y, mean, std):
 
 def denormalize(y_norm, mean, std):
     return (y_norm * std) + mean
+
+
+def randomly_swap_redundant_codon(rna_seq, seed):
+    rs = np.random.RandomState(seed)
+
+    if len(rna_seq) % 3 != 0:
+        raise ValueError('RNA sequence length must be a multiple of 3')
+
+    # Start and end codons are left unmodified.
+    if len(rna_seq) <= 6:
+        return seq
+
+    seq = rna_seq[3:-3]
+
+    output_seq = rna_seq[:3]
+    for codon_ix in range(0, int(len(seq) / 3) + 3, 3):
+        codon = seq[codon_ix:codon_ix + 3]
+
+        if codon not in CODON_REDUNDANCY:
+            output_seq += codon
+        else:
+            r_map = CODON_REDUNDANCY[codon]
+
+            candidates = [m[0] for m in r_map]
+            probabilities = [m[1] for m in r_map]
+
+            s = rs.choice(candidates, size=1, p=probabilities)
+
+            output_seq += ''.join(s)
+
+    output_seq += rna_seq[-3:]
+
+    return output_seq

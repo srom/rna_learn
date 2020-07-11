@@ -1,6 +1,10 @@
 import unittest
 
-from .transform import sequence_embedding, combine_sequences
+from .transform import (
+    sequence_embedding, 
+    combine_sequences, 
+    randomly_swap_redundant_codon,
+)
 
 
 alphabet_dna = [
@@ -78,8 +82,19 @@ class TestTransform(unittest.TestCase):
             [0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.],
             [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.],
             [0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.],
-
         ], x[0].tolist())
+
+    def test_randomly_swap_redundant_codon(self):
+        seq = 'ATGTATTCTTGA'
+        random_seq = randomly_swap_redundant_codon(seq, seed=123)
+
+        # First and last codons are unmodified
+        self.assertEqual('ATG', random_seq[:3])
+        self.assertEqual('TGA', random_seq[-3:])
+
+        # Conversion to the correct redundant codons
+        self.assertTrue(random_seq[3:6] in ['TAT', 'TAC'])
+        self.assertTrue(random_seq[6:9] in ['TCT', 'TCC', 'TCA', 'TCG', 'AGT', 'AGC'])
 
 
 if __name__ == '__main__':
