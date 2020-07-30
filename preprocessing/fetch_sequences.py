@@ -48,14 +48,13 @@ def main():
     n_processes = args.n_processes
 
     if input_csv is None:
-        input_csv = SEQUENCES_TO_DOWNLOAD
+        input_csv = os.path.join(os.getcwd(), input_csv)
     if output_folder is None:
-        output_folder = OUTPUT_PATH
+        output_folder = os.path.join(os.getcwd(), OUTPUT_PATH)
 
     logger.info('Loading data')
 
-    ncbi_species_path = os.path.join(os.getcwd(), input_csv)
-    ncbi_metadata = pd.read_csv(ncbi_species_path)
+    ncbi_metadata = pd.read_csv(input_csv)
 
     species_taxid = ncbi_metadata['species_taxid'].values.tolist()
 
@@ -98,8 +97,7 @@ def worker_main(job_id, species_taxid, input_csv, output_folder):
 
     logger.info(f'Process {job_id} | Process ID: {os.getpid()}')
 
-    ncbi_species_path = os.path.join(os.getcwd(), input_csv)
-    ncbi_metadata = pd.read_csv(ncbi_species_path)
+    ncbi_metadata = pd.read_csv(input_csv)
 
     job_data = ncbi_metadata[
         ncbi_metadata['species_taxid'].isin(species_taxid)
@@ -121,7 +119,7 @@ def fetch_sequences(metadata, output_folder):
     specie_taxid = metadata['species_taxid']
     download_url_base = metadata['download_url_base']
 
-    save_folder = os.path.join(os.getcwd(), output_folder, f'{specie_taxid}')
+    save_folder = os.path.join(output_folder, f'{specie_taxid}')
 
     # Create folder if it doesn't exist
     Path(save_folder).mkdir(parents=True, exist_ok=True)

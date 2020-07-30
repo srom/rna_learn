@@ -10,3 +10,4 @@ jupyter
 scikit-learn
 statsmodels
 keras-tuner
+sqlalchemy
