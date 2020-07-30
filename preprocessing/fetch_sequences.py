@@ -7,6 +7,7 @@
 ## script developped by Antoine Hocher.
 #############################################################
 
+import argparse
 import os
 import logging
 import time
@@ -20,7 +21,6 @@ import urllib.error as urllib_error
 import pandas as pd
 
 
-N_PROCESSES = 4
 SEQUENCES_TO_DOWNLOAD = 'data/condensed_traits/ncbi_species_final.csv'
 OUTPUT_PATH = 'data/condensed_traits/sequences'
 
@@ -30,27 +30,50 @@ logger = logging.getLogger(__name__)
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_csv', type=str, default=None)
+    parser.add_argument('--output_folder', type=str, default=None)
+    parser.add_argument('--n_processes', type=int, default=4)
+    args = parser.parse_args()
+
+    input_csv = args.input_csv
+    output_folder = args.output_folder
+    n_processes = args.n_processes
+
+    if input_csv is None:
+        input_csv = SEQUENCES_TO_DOWNLOAD
+    if output_folder is None:
+        output_folder = OUTPUT_PATH
+
     logger.info('Loading data')
 
-    ncbi_species_path = os.path.join(os.getcwd(), SEQUENCES_TO_DOWNLOAD)
+    ncbi_species_path = os.path.join(os.getcwd(), input_csv)
     ncbi_metadata = pd.read_csv(ncbi_species_path)
 
     species_taxid = ncbi_metadata['species_taxid'].values.tolist()
 
-    logger.info(f'Launching {N_PROCESSES} processes')
+    logger.info(f'Launching {n_processes} processes')
 
     n_species = len(species_taxid)
-    n_species_per_job = int(round(n_species / N_PROCESSES))
+    n_species_per_job = int(round(n_species / n_processes))
     processes = []
-    for i in range(N_PROCESSES):
+    for i in range(n_processes):
         start = i * n_species_per_job
         end = start + n_species_per_job
-        if i + 1 < N_PROCESSES:
+        if i + 1 < n_processes:
             job_species_taxid = species_taxid[start:end]
         else:
             job_species_taxid = species_taxid[start:]
 
-        p = Process(target=worker_main, args=(f'P{i+1}', job_species_taxid))
+        p = Process(
+            target=worker_main, 
+            args=(
+                f'P{i+1}', 
+                job_species_taxid, 
+                input_csv, 
+                output_folder,
+            ),
+        )
         p.start()
         processes.append(p)
         
@@ -60,7 +83,7 @@ def main():
     logger.info('DONE')
 
 
-def worker_main(job_id, species_taxid):
+def worker_main(job_id, species_taxid, input_csv, output_folder):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
 
     timeout_in_seconds = 60
@@ -68,7 +91,7 @@ def worker_main(job_id, species_taxid):
 
     logger.info(f'Process {job_id} | Process ID: {os.getpid()}')
 
-    ncbi_species_path = os.path.join(os.getcwd(), SEQUENCES_TO_DOWNLOAD)
+    ncbi_species_path = os.path.join(os.getcwd(), input_csv)
     ncbi_metadata = pd.read_csv(ncbi_species_path)
 
     job_data = ncbi_metadata[
@@ -82,16 +105,16 @@ def worker_main(job_id, species_taxid):
             logger.info(f'Process {job_id} | Specie {row_ix + 1} / {len(job_data)}')
 
         row = job_data.loc[row_ix]
-        fetch_sequences(row)
+        fetch_sequences(row, output_folder)
 
     logger.info(f'Process {job_id}: DONE')
 
 
-def fetch_sequences(metadata):
+def fetch_sequences(metadata, output_folder):
     specie_taxid = metadata['species_taxid']
     download_url_base = metadata['download_url_base']
 
-    save_folder = os.path.join(OUTPUT_PATH, f'{specie_taxid}')
+    save_folder = os.path.join(os.getcwd(), output_folder, f'{specie_taxid}')
 
     # Create folder if it doesn't exist
     Path(save_folder).mkdir(parents=True, exist_ok=True)
