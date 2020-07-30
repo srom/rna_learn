@@ -1,0 +1,180 @@
+#############################################################
+## Project: mRNA thermal adaptation
+## Script purpose: Assemble a large database of procaryotic
+## sequences by fetching data from NCBI's ftp server.
+## Date: July 2020
+## Author: Adapted in Python by Romain Strock from an R 
+## script developped by Antoine Hocher.
+#############################################################
+
+import os
+import logging
+import time
+from pathlib import Path
+from multiprocessing import Process
+from contextlib import closing
+import socket
+import urllib.request as urllib_request
+import urllib.error as urllib_error
+
+import pandas as pd
+
+
+N_PROCESSES = 4
+SEQUENCES_TO_DOWNLOAD = 'data/condensed_traits/ncbi_species_final.csv'
+OUTPUT_PATH = 'data/condensed_traits/sequences'
+
+logger = logging.getLogger(__name__)
+
+
+def main():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
+
+    logger.info('Loading data')
+
+    ncbi_species_path = os.path.join(os.getcwd(), SEQUENCES_TO_DOWNLOAD)
+    ncbi_metadata = pd.read_csv(ncbi_species_path)
+
+    species_taxid = ncbi_metadata['species_taxid'].values.tolist()
+
+    logger.info(f'Launching {N_PROCESSES} processes')
+
+    n_species = len(species_taxid)
+    n_species_per_job = int(round(n_species / N_PROCESSES))
+    processes = []
+    for i in range(N_PROCESSES):
+        start = i * n_species_per_job
+        end = start + n_species_per_job
+        if i + 1 < N_PROCESSES:
+            job_species_taxid = species_taxid[start:end]
+        else:
+            job_species_taxid = species_taxid[start:]
+
+        p = Process(target=worker_main, args=(f'P{i+1}', job_species_taxid))
+        p.start()
+        processes.append(p)
+        
+    for p in processes:
+        p.join()
+
+    logger.info('DONE')
+
+
+def worker_main(job_id, species_taxid):
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
+
+    timeout_in_seconds = 60
+    socket.setdefaulttimeout(timeout_in_seconds)
+
+    logger.info(f'Process {job_id} | Process ID: {os.getpid()}')
+
+    ncbi_species_path = os.path.join(os.getcwd(), SEQUENCES_TO_DOWNLOAD)
+    ncbi_metadata = pd.read_csv(ncbi_species_path)
+
+    job_data = ncbi_metadata[
+        ncbi_metadata['species_taxid'].isin(species_taxid)
+    ].reset_index(drop=True)
+
+    logger.info(f'Process {job_id} | {len(job_data)} species | Process ID: {os.getpid()}')
+
+    for row_ix in job_data.index:
+        if (row_ix + 1) % 10 == 0:
+            logger.info(f'Process {job_id} | Specie {row_ix + 1} / {len(job_data)}')
+
+        row = job_data.loc[row_ix]
+        fetch_sequences(row)
+
+    logger.info(f'Process {job_id}: DONE')
+
+
+def fetch_sequences(metadata):
+    specie_taxid = metadata['species_taxid']
+    download_url_base = metadata['download_url_base']
+
+    save_folder = os.path.join(OUTPUT_PATH, f'{specie_taxid}')
+
+    # Create folder if it doesn't exist
+    Path(save_folder).mkdir(parents=True, exist_ok=True)
+
+    sequences_to_fetch = [
+        (
+            f'{download_url_base}_genomic.fna.gz', 
+            os.path.join(save_folder, f'{specie_taxid}_genomic.fna.gz'),
+        ),
+        (
+            f'{download_url_base}_genomic.gff.gz', 
+            os.path.join(save_folder, f'{specie_taxid}_genomic.gff.gz'),
+        ),
+        (
+            f'{download_url_base}_protein.faa.gz', 
+            os.path.join(save_folder, f'{specie_taxid}_protein.faa.gz'),
+        ),
+        (
+            f'{download_url_base}_cds_from_genomic.fna.gz', 
+            os.path.join(save_folder, f'{specie_taxid}_cds_from_genomic.fna.gz'),
+        ),
+        (
+            f'{download_url_base}_rna_from_genomic.fna.gz', 
+            os.path.join(save_folder, f'{specie_taxid}_rna_from_genomic.fna.gz'),
+        ),
+    ]
+
+    for ftp_url, save_path in sequences_to_fetch:
+        if Path(save_path).is_file():
+            continue
+
+        start_time_s = time.time()
+
+        download_file_with_error_handling(ftp_url, save_path)
+
+        elapsed_s = time.time() - start_time_s
+
+        # Don't fire requests too often
+        if elapsed_s < 0.4:
+            time.sleep(0.4 - elapsed_s)
+
+
+def download_file_with_error_handling(ftp_url, save_path, max_tries=5):
+    try_number = 0
+    while True:
+        try_number += 1
+        error_message = ''
+
+        try:
+            download_file(ftp_url, save_path)
+            return
+
+        except urllib_error.ContentTooShortError:
+            error_message = 'ContentTooShortError exception'
+
+        except urllib_error.URLError as e:
+            error_message = e.reason
+
+            # NCBI FTP server returns a meaningful message when content does not exist.
+            # In this case we simply move on.
+            if isinstance(error_message, str) and 'No such file or directory' in error_message:
+                return
+
+        if try_number >= max_tries:
+            logger.error(f'Too many errors for url {ftp_url} | Error: {error_message}')
+            return
+        else:
+            if try_number == 2:
+                logger.warning(f'Second error for url {ftp_url} | Error: {error_message}')
+
+            # Sleep for longer as consecutive errors creep in.
+            # This is so we can recover from cases where NCBI notifies
+            # us that too many requests have been fired.
+            sleep_time_seconds = try_number * 0.4
+            time.sleep(sleep_time_seconds)
+            continue
+
+
+def download_file(ftp_url, save_path):
+    with closing(urllib_request.urlopen(ftp_url)) as r:
+        with open(save_path, 'wb') as f:
+            f.write(r.read())
+
+
+if __name__ == '__main__':
+    main()
