@@ -28,6 +28,13 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    """
+    Species to download should be specified in a comma separated file (CSV) in utf-8 format
+    with at least the following two columns:
+        - species_taxid: NCBI species taxonomy ID
+        - download_url_base: base ftp url of the sequences to be fetched 
+          (e.g. everything before "_genomic.fna.gz")
+    """
     logging.basicConfig(level=logging.INFO, format="%(asctime)s (%(levelname)s) %(message)s")
 
     parser = argparse.ArgumentParser()
