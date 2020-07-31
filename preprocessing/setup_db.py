@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine, Table, Column, Integer, Float, String, MetaData, ForeignKey
+from sqlalchemy import create_engine, Table, Column, Integer, Float, String, MetaData, Index
 
 
 DB_PATH = 'data/condensed_traits/db/seq.db'
@@ -43,6 +43,7 @@ def main():
 
     create_ncbi_species_metadata_table(engine, ncbi_species_path)
     create_species_traits_table(engine, species_traits_path)
+    create_sequences_table(engine)
 
 
 def create_ncbi_species_metadata_table(engine, ncbi_species_path):
@@ -157,6 +158,33 @@ def create_species_traits_table(engine, species_traits_path):
         method='multi',
         index=False,
     )
+
+
+def create_sequences_table(engine):
+    table_name = 'sequences'
+
+    if engine.dialect.has_table(engine, table_name):
+        logger.info(f'Table {table_name} already exists, skipping')
+        return
+    else:
+        logger.info(f'Creating table {table_name}')
+
+    metadata = MetaData()
+    sequences_table = Table(
+        table_name, 
+        metadata,
+        Column('sequence_id', String, nullable=False),
+        Column('species_taxid', Integer, nullable=False),
+        Column('sequence_type', String, nullable=False),
+        Column('location_json', String, nullable=False),
+        Column('strand', String, nullable=False),
+        Column('length', String, nullable=False),
+        Column('description', String, nullable=True),
+        Column('metadata_json', String, nullable=True),
+        Column('sequence', String, nullable=False),
+        Index('idx_seq_species_taxid', 'species_taxid'),
+    )
+    sequences_table.create(engine)
 
 
 if __name__ == '__main__':
