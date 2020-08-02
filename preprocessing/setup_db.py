@@ -176,6 +176,7 @@ def create_sequences_table(engine):
         Column('sequence_id', String, nullable=False),
         Column('species_taxid', Integer, nullable=False),
         Column('sequence_type', String, nullable=False),
+        Column('chromosome_id', String, nullable=False),
         Column('location_json', String, nullable=False),
         Column('strand', String, nullable=False),
         Column('length', String, nullable=False),

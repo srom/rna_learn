@@ -3,12 +3,18 @@ import os
 import logging
 import gzip
 import json
-import re
 
 import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 from Bio import SeqIO
+
+
+from .sequence_utils import (
+    parse_location, 
+    InvalidLocationError,
+    parse_chromosome_id,
+)
 
 
 DB_PATH = 'data/condensed_traits/db/seq.db'
@@ -73,27 +79,32 @@ def main():
 
 def import_sequences(engine, species_taxid, sequence_records):
     columns = [
-        'sequence_id', 'species_taxid', 'sequence_type', 'location_json', 'strand',
-        'length', 'description', 'metadata_json', 'sequence',
+        'sequence_id', 'species_taxid', 'sequence_type', 
+        'chromosome_id', 'location_json', 'strand', 'length', 
+        'description', 'metadata_json', 'sequence',
     ]
 
     data = []
     for sequence_record in sequence_records:
         seq_id = sequence_record.id
         sequence = sequence_record.seq
+        sequence_type = 'CDS'
         metadata_json = None
 
         try:
             location_list, strand = parse_location(sequence_record)
             location_json = json.dumps(location_list, sort_keys=True)
         except InvalidLocationError as e:
-            logger.warning(f'{species_taxid} | {seq_id} | Invalid location information: {e.message}')
+            logger.warning(f'{species_taxid} | Invalid location information: {e.message}')
             continue
+
+        chromosome_id = parse_chromosome_id(seq_id)
 
         row = [
             seq_id,
             species_taxid,
-            'CDS',
+            sequence_type,
+            chromosome_id,
             location_json,
             strand,
             len(sequence),
@@ -126,61 +137,6 @@ def is_valid_cds(sequence_record):
         translated_seq_str[-1] == '*' and 
         '*' not in translated_seq_str[:-1]
     )
-
-
-def parse_location(sequence_record):
-    description = sequence_record.description
-
-    m1 = re.match(r'^.*\[location=<?([0-9]+)..>?([0-9]+)\].*$', description)
-    if m1 is not None:
-        return [[m1[1], m1[2]]], '+'
-
-    m2 = re.match(r'^.*\[location=complement\(<?([0-9]+)..>?([0-9]+)\)\].*$', description)
-    if m2 is not None:
-        return [[m2[1], m2[2]]], '-'
-
-    m3 = re.match(r'^.*\[location=join\(([^\]]+)\)\].*$', description)
-    if m3 is not None:
-        joined_location = m3[1]
-        try:
-            locations = parse_joined_location(joined_location)
-        except InvalidLocationError:
-            raise InvalidLocationError(description)
-            
-        return locations, '+'
-
-    m4 = re.match(r'^.*\[location=complement\(join\(([^\]]+)\)\)\].*$', description)
-    if m4 is not None:
-        joined_location = m4[1]
-        try:
-            locations = parse_joined_location(joined_location)
-        except InvalidLocationError:
-            raise InvalidLocationError(description)
-
-        return locations, '-'
-
-    raise InvalidLocationError(description)
-
-
-def parse_joined_location(joined_location):
-    locations = []
-    for span_str in joined_location.split(','):
-        span = span_str.strip()
-        m = re.match(r'^<?([0-9]+)..>?([0-9]+)$', span)
-
-        if m is not None:
-            locations.append([m[1], m[2]])
-        else:
-            raise InvalidLocationError(span)
-
-    return locations
-
-
-class InvalidLocationError(Exception):
-
-    def __init__(self, message, *args, **kwargs):
-        self.message = message
-        super().__init__(*args, **kwargs)
 
 
 if __name__ == '__main__':
