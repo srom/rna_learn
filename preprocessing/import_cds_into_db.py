@@ -9,7 +9,6 @@ import pandas as pd
 from sqlalchemy import create_engine
 from Bio import SeqIO
 
-
 from .sequence_utils import (
     parse_location, 
     InvalidLocationError,
@@ -43,7 +42,7 @@ def main():
 
     cds_path_fmt = os.path.join(sequences_base_folder, '{0}/{0}_cds_from_genomic.fna.gz')
 
-    species_taxid_query = 'select species_taxid from ncbi_species_metadata'
+    species_taxid_query = 'select species_taxid from species_source'
     species_taxids = pd.read_sql(species_taxid_query, engine)['species_taxid'].values.tolist()
 
     logger.info(f'Importing CDS for {len(species_taxids):,} species')
@@ -88,6 +87,7 @@ def import_sequences(engine, species_taxid, sequence_records):
     for sequence_record in sequence_records:
         seq_id = sequence_record.id
         sequence = sequence_record.seq
+        chromosome_id = parse_chromosome_id(seq_id)
         sequence_type = 'CDS'
         metadata_json = None
 
@@ -97,8 +97,6 @@ def import_sequences(engine, species_taxid, sequence_records):
         except InvalidLocationError as e:
             logger.warning(f'{species_taxid} | Invalid location information: {e.message}')
             continue
-
-        chromosome_id = parse_chromosome_id(seq_id)
 
         row = [
             seq_id,

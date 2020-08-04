@@ -3,8 +3,7 @@
 ## Script purpose: Assemble a large database of procaryotic
 ## sequences by fetching data from NCBI's ftp server.
 ## Date: July 2020
-## Author: Adapted in Python by Romain Strock from an R 
-## script developped by Antoine Hocher.
+## Author: Romain Strock
 #############################################################
 
 import argparse

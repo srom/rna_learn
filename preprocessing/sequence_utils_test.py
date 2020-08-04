@@ -6,6 +6,8 @@ from .sequence_utils import (
     parse_location, 
     InvalidLocationError,
     parse_chromosome_id,
+    parse_sequence_type,
+    InvalidSequenceTypeError,
 )
 
 
@@ -32,7 +34,7 @@ DESCRIPTION_4 = """
 lcl|CP035901.1_cds_QHP94554.1_3203 [locus_tag=EXE55_16365] 
 [protein=amino acid adenylation domain-containing protein] 
 [protein_id=QHP94554.1] [gbkey=CDS]
-[location=complement(join(2755259..2763738,2763740..2763750))]
+[location=complement(join(2755259..2763738, 2763740..2763750))]
 """
 
 DESCRIPTION_5 = """
@@ -109,6 +111,18 @@ class TestParseChromosomeId(unittest.TestCase):
 
         chromosome_id = parse_chromosome_id('AP019551.1_cds_BBJ27171.1_38')
         self.assertEqual('AP019551.1', chromosome_id)
+
+
+class TestParseSequenceType(unittest.TestCase):
+
+    def test_parse_location(self):
+        with self.assertRaises(InvalidSequenceTypeError):
+            record = SeqRecord('ATGC', description='')
+            parse_sequence_type(record)
+
+        record = SeqRecord('ATGC', description=DESCRIPTION_1)
+        sequence_type = parse_sequence_type(record)
+        self.assertEqual('CDS', sequence_type)
 
 
 if __name__ == '__main__':

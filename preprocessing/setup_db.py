@@ -1,7 +1,9 @@
 import argparse
 import os
 import logging
+import re
 
+from Bio import SeqIO
 import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine, Table, Column, Integer, Float, String, MetaData, Index
@@ -10,6 +12,7 @@ from sqlalchemy import create_engine, Table, Column, Integer, Float, String, Met
 DB_PATH = 'data/condensed_traits/db/seq.db'
 NCBI_SPECIES_PATH = 'data/condensed_traits/ncbi_species_final.csv'
 SPECIES_TRAITS_PATH = 'data/condensed_traits/condensed_species_NCBI_with_ogt.csv'
+TRNA_REFERENCE_FOLDER = 'data/condensed_traits/tRNADB-CE'
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +27,13 @@ def main():
     parser.add_argument('--db_path', type=str, default=None)
     parser.add_argument('--ncbi_species_path', type=str, default=None)
     parser.add_argument('--species_traits_path', type=str, default=None)
+    parser.add_argument('--trna_reference_folder', type=str, default=None)
     args = parser.parse_args()
 
     db_path = args.db_path
     ncbi_species_path = args.ncbi_species_path
     species_traits_path = args.species_traits_path
+    trna_reference_folder = args.trna_reference_folder
 
     if db_path is None:
         db_path = os.path.join(os.getcwd(), DB_PATH)
@@ -36,18 +41,21 @@ def main():
         ncbi_species_path = os.path.join(os.getcwd(), NCBI_SPECIES_PATH)
     if species_traits_path is None:
         species_traits_path = os.path.join(os.getcwd(), SPECIES_TRAITS_PATH)
+    if trna_reference_folder is None:
+        trna_reference_folder = os.path.join(os.getcwd(), TRNA_REFERENCE_FOLDER)
 
     logger.info(f'Database path: {db_path}')
 
     engine = create_engine(f'sqlite+pysqlite:///{db_path}')
 
-    create_ncbi_species_metadata_table(engine, ncbi_species_path)
+    create_species_source_table(engine, ncbi_species_path)
     create_species_traits_table(engine, species_traits_path)
+    create_trna_reference_table(engine, trna_reference_folder)
     create_sequences_table(engine)
 
 
-def create_ncbi_species_metadata_table(engine, ncbi_species_path):
-    table_name = 'ncbi_species_metadata'
+def create_species_source_table(engine, ncbi_species_path):
+    table_name = 'species_source'
 
     if engine.dialect.has_table(engine, table_name):
         logger.info(f'Table {table_name} already exists, skipping')
@@ -56,7 +64,7 @@ def create_ncbi_species_metadata_table(engine, ncbi_species_path):
         logger.info(f'Creating table {table_name}')
 
     metadata = MetaData()
-    ncbi_species_metadata = Table(
+    species_source = Table(
         table_name, 
         metadata,
         Column('species_taxid', Integer, primary_key=True),
@@ -114,7 +122,7 @@ def create_species_traits_table(engine, species_traits_path):
     species_traits_all['species_taxid'] = species_traits_all['species_tax_id']
 
     species_taxid_short_list = pd.read_sql(
-        'select species_taxid from ncbi_species_metadata', 
+        'select species_taxid from species_source', 
         engine,
     )['species_taxid'].values
 
@@ -135,7 +143,7 @@ def create_species_traits_table(engine, species_traits_path):
             raise ValueError(f'Unknown type {type(el)}')
 
     metadata = MetaData()
-    ncbi_species_metadata = Table(
+    species_traits_table = Table(
         table_name, 
         metadata,
         Column('species_taxid', Integer, primary_key=True),
@@ -158,6 +166,93 @@ def create_species_traits_table(engine, species_traits_path):
         method='multi',
         index=False,
     )
+
+
+def create_trna_reference_table(engine, trna_reference_folder):
+    table_name = 'trna_reference'
+
+    if engine.dialect.has_table(engine, table_name):
+        logger.info(f'Table {table_name} already exists, skipping')
+        return
+    else:
+        logger.info(f'Creating table {table_name}')
+
+    metadata = MetaData()
+    trna_ref_table = Table(
+        table_name, 
+        metadata,
+        Column('sequence_id', String, primary_key=True),
+        Column('species', String, nullable=False),
+        Column('phylum', String, nullable=False),
+        Column('superkingdom', String, nullable=False),
+        Column('amino_acid', String, nullable=False),
+        Column('anticodon', String, nullable=False),
+        Column('coding_sequence', String, nullable=False),
+        Column('full_sequence', String, nullable=False),
+    )
+    trna_ref_table.create(engine)
+
+    all_columns = [
+        'sequence_id', 'genome_id', 'phylum', 'species', 
+        'start_position','end_position', 
+        'amino_acid', 'anticodon', 'first_intron_start_position',
+        'first_intron_end_position', 'first_intron_seq',
+        'second_intron_start_position', 'second_intron_end_position', 
+        'second_intron_seq', 'comment', 'original_database', 'superkingdom', 
+        'coding_sequence', 'full_sequence',
+    ]
+    columns_to_save = [
+        'sequence_id', 'species', 'phylum', 'superkingdom', 
+        'amino_acid', 'anticodon', 'coding_sequence', 'full_sequence',
+    ]
+
+    def populate_trna_ref(records, superkingdom):
+        data = []
+        for record in records:
+            description = record.description
+            row = list(description.split('|'))
+
+            coding_seq = ''
+            full_seq = str(record.seq)
+            for char in full_seq:
+                m = re.match('^[ATGC]$', char)
+                if m is not None:
+                    coding_seq += char
+            
+            row.append(superkingdom)
+            row.append(coding_seq.upper())
+            row.append(full_seq.upper())
+
+            data.append(row)
+
+        data_df = pd.DataFrame(
+            data, 
+            columns=all_columns,
+        )
+        data_df[columns_to_save].to_sql(
+            table_name,
+            engine,
+            if_exists='append',
+            index=False,
+            chunksize=100,
+        )
+
+    logger.info(f'Saving data to {table_name} (Bacteria)')
+
+    folder = trna_reference_folder
+    bac_path = os.path.join(os.getcwd(), folder, 'trna_sequence_cmp_bac_1.fasta')
+    with open(bac_path, 'r', encoding='cp1252') as f:
+        bacteria_trnas = list(SeqIO.parse(f, 'fasta'))
+
+    populate_trna_ref(bacteria_trnas, 'Bacteria')
+
+    logger.info(f'Saving data to {table_name} (Archaea)')
+
+    arc_path = os.path.join(os.getcwd(), folder, 'trna_sequence_cmp_arc_1.fasta')
+    with open(arc_path, 'r', encoding='cp1252') as f:
+        archaea_trnas = list(SeqIO.parse(f, 'fasta'))
+
+    populate_trna_ref(archaea_trnas, 'Archaea')
 
 
 def create_sequences_table(engine):

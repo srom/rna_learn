@@ -64,3 +64,21 @@ def parse_chromosome_id(sequence_id):
     parts = seq_id.split('_')
 
     return parts[0]
+
+
+def parse_sequence_type(sequence_record):
+    description = sequence_record.description.replace('\n', '').strip()
+
+    m = re.match(r'^.*\[gbkey=([^\]]+)\].*$', description)
+
+    if m is not None:
+        return m[1].strip()
+    
+    raise InvalidSequenceTypeError(description)
+
+
+class InvalidSequenceTypeError(Exception):
+
+    def __init__(self, message, *args, **kwargs):
+        self.message = message
+        super().__init__(*args, **kwargs)
