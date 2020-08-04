@@ -13,6 +13,7 @@ from .sequence_utils import (
     parse_location, 
     InvalidLocationError,
     parse_chromosome_id,
+    parse_protein_information,
 )
 
 
@@ -89,7 +90,11 @@ def import_sequences(engine, species_taxid, sequence_records):
         sequence = sequence_record.seq
         chromosome_id = parse_chromosome_id(seq_id)
         sequence_type = 'CDS'
+
         metadata_json = None
+        metadata_dict = parse_protein_information(sequence_record)
+        if metadata_dict is not None:
+            metadata_json = json.dumps(metadata_dict, sort_keys=True)
 
         try:
             location_list, strand = parse_location(sequence_record)

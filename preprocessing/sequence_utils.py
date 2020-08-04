@@ -1,4 +1,5 @@
 import re
+import json
 
 
 def parse_location(sequence_record):
@@ -82,3 +83,66 @@ class InvalidSequenceTypeError(Exception):
     def __init__(self, message, *args, **kwargs):
         self.message = message
         super().__init__(*args, **kwargs)
+
+
+def parse_protein_information(record):
+    protein_information = {}
+    description = record.description.replace('\n', '').strip()
+
+    m = re.match(r'^.*\[protein=([^\]]+)\].*$', description)
+    if m is not None:
+        protein_information['protein'] = m[1].strip()
+
+    m = re.match(r'^.*\[protein_id=([^\]]+)\].*$', description)
+    if m is not None:
+        protein_information['protein_id'] = m[1].strip()
+
+    m = re.match(r'^.*\[gene=([^\]]+)\].*$', description)
+    if m is not None:
+        protein_information['gene'] = m[1].strip()
+
+    if len(protein_information) > 0:
+        return protein_information
+    else:
+        return None
+
+
+def get_location_range(start, end, strand, length):
+    if strand == '+':
+        return set(range(start, end + 1))
+    else:
+        start_ = (length - end) + 1
+        end_ = (length - start) + 1
+        return set(range(start_, end_ + 1))
+
+
+def get_non_coding_records(chromosome_id, sequence, non_coding_ix):
+    records = []
+    current_sequence = []
+    current_locations = []
+    prev_loc = None
+    for loc in non_coding_ix:
+        sequence_index = loc - 1
+        if prev_loc is None or prev_loc + 1 == loc:
+            current_sequence.append(sequence[sequence_index])
+            current_locations.append(loc)
+        else:
+            seq = ''.join(current_sequence)
+            start = current_locations[0]
+            end = current_locations[-1]
+            location_json = json.dumps([[start, end]])
+            records.append((chromosome_id, location_json, seq))
+
+            current_sequence = [sequence[sequence_index]]
+            current_locations = [loc]
+
+        prev_loc = loc
+
+    if len(current_sequence) > 0:
+        seq = ''.join(current_sequence)
+        start = current_locations[0]
+        end = current_locations[-1]
+        location_json = json.dumps([[start, end]])
+        records.append((chromosome_id, location_json, seq))
+
+    return records
