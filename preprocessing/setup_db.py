@@ -6,13 +6,25 @@ import re
 from Bio import SeqIO
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine, Table, Column, Integer, Float, String, MetaData, Index
+from sqlalchemy import (
+    create_engine, 
+    Table, 
+    Column, 
+    Integer, 
+    Float, 
+    String,
+    Boolean, 
+    MetaData, 
+    Index,
+)
 
 
 DB_PATH = 'data/condensed_traits/db/seq.db'
 NCBI_SPECIES_PATH = 'data/condensed_traits/ncbi_species_final.csv'
 SPECIES_TRAITS_PATH = 'data/condensed_traits/condensed_species_NCBI_with_ogt.csv'
 TRNA_REFERENCE_FOLDER = 'data/condensed_traits/tRNADB-CE'
+TRAIN_TEST_SPLIT_SEED = 444
+TEST_RATIO = 0.2
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +64,11 @@ def main():
     create_species_traits_table(engine, species_traits_path)
     create_trna_reference_table(engine, trna_reference_folder)
     create_sequences_table(engine)
+    create_train_test_split_table(
+        engine, 
+        seed=TRAIN_TEST_SPLIT_SEED,
+        test_ratio=TEST_RATIO,
+    )
 
 
 def create_species_source_table(engine, ncbi_species_path):
@@ -281,6 +298,61 @@ def create_sequences_table(engine):
         Index('idx_seq_species_taxid', 'species_taxid'),
     )
     sequences_table.create(engine)
+
+
+def create_train_test_split_table(engine, seed, test_ratio):
+    table_name = 'train_test_split'
+
+    if engine.dialect.has_table(engine, table_name):
+        logger.info(f'Table {table_name} already exists, skipping')
+        return
+    else:
+        logger.info(f'Creating table {table_name}')
+
+    rs = np.random.RandomState(seed)
+
+    species_taxids = species_taxids = pd.read_sql(
+        'select species_taxid from species_source', 
+        engine
+    )['species_taxid'].values
+
+    test_set_size = int(np.ceil(test_ratio * len(species_taxids)))
+
+    test_species_taxids = rs.choice(
+        species_taxids, 
+        size=test_set_size, 
+        replace=False,
+    )
+
+    test_species_taxids_set = set(test_species_taxids.tolist())
+
+    data = []
+    for species_taxid in species_taxids:
+        data.append([
+            species_taxid,
+            species_taxid in test_species_taxids_set,
+        ])
+
+    df = pd.DataFrame(data, columns=['species_taxid', 'in_test_set'])
+
+    metadata = MetaData()
+    train_test_split_table = Table(
+        table_name, 
+        metadata,
+        Column('species_taxid', Integer, nullable=False),
+        Column('in_test_set', Boolean, nullable=False),
+    )
+    train_test_split_table.create(engine)
+
+    logger.info(f'Saving data to {table_name}')
+
+    df.to_sql(
+        table_name,
+        engine,
+        if_exists='append',
+        index=False,
+        chunksize=100,
+    )
 
 
 if __name__ == '__main__':
