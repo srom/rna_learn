@@ -1,9 +1,11 @@
 import unittest
 import json
 
+from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from .sequence_utils import (
+    is_valid_cds,
     parse_location, 
     InvalidLocationError,
     parse_chromosome_id,
@@ -66,6 +68,14 @@ lcl|CP035901.1_cds_QHP94554.1_3203 [locus_tag=EXE55_16365]
 [protein_id=QHP94554.1] [location=complement(join(2755259..2763738,1))] 
 [gbkey=CDS]
 """
+
+
+class TestIsValidCDS(unittest.TestCase):
+
+    def test_is_valid_cds(self):
+        self.assertTrue(is_valid_cds(Seq('ATGCATTGA')))
+        self.assertFalse(is_valid_cds(Seq('ATGCATTGAC')))
+        self.assertFalse(is_valid_cds(Seq('ATGCATTGACAT')))
 
 
 class TestParseLocation(unittest.TestCase):

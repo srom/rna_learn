@@ -274,7 +274,7 @@ def create_sequences_table(engine):
         Column('chromosome_id', String, nullable=False),
         Column('location_json', String, nullable=False),
         Column('strand', String, nullable=False),
-        Column('length', String, nullable=False),
+        Column('sequence_length', Integer, nullable=False),
         Column('description', String, nullable=True),
         Column('metadata_json', String, nullable=True),
         Column('sequence', String, nullable=False),

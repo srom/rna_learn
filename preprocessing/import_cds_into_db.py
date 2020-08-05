@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from Bio import SeqIO
 
 from .sequence_utils import (
+    is_valid_cds,
     parse_location, 
     InvalidLocationError,
     parse_chromosome_id,
@@ -66,7 +67,7 @@ def main():
             sequence_record = cds_dict[sequence_id]
 
             n_seen_cds += 1
-            if is_valid_cds(sequence_record):
+            if is_valid_cds(sequence_record.seq):
                 n_imported += 1
                 sequence_records_to_import.append(sequence_record)
 
@@ -80,7 +81,7 @@ def main():
 def import_sequences(engine, species_taxid, sequence_records):
     columns = [
         'sequence_id', 'species_taxid', 'sequence_type', 
-        'chromosome_id', 'location_json', 'strand', 'length', 
+        'chromosome_id', 'location_json', 'strand', 'sequence_length', 
         'description', 'metadata_json', 'sequence',
     ]
 
@@ -124,21 +125,6 @@ def import_sequences(engine, species_taxid, sequence_records):
         if_exists='append',
         method='multi',
         index=False,
-    )
-
-
-def is_valid_cds(sequence_record):
-    sequence = sequence_record.seq
-
-    if len(sequence) % 3 != 0:
-        return False
-
-    translated_seq = sequence.translate()
-    translated_seq_str = str(translated_seq)
-
-    return (
-        translated_seq_str[-1] == '*' and 
-        '*' not in translated_seq_str[:-1]
     )
 
 

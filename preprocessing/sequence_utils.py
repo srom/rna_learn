@@ -2,6 +2,19 @@ import re
 import json
 
 
+def is_valid_cds(sequence):
+    if len(sequence) % 3 != 0:
+        return False
+
+    translated_seq = sequence.translate()
+    translated_seq_str = str(translated_seq)
+
+    return (
+        translated_seq_str[-1] == '*' and 
+        '*' not in translated_seq_str[:-1]
+    )
+
+
 def parse_location(sequence_record):
     description = sequence_record.description.replace('\n', '').strip()
 

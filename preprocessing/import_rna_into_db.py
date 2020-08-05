@@ -101,7 +101,7 @@ def main():
 def import_sequences(engine, species_taxid, sequence_records, superkingdom, known_trnas):
     columns = [
         'sequence_id', 'species_taxid', 'sequence_type', 
-        'chromosome_id', 'location_json', 'strand', 'length', 
+        'chromosome_id', 'location_json', 'strand', 'sequence_length', 
         'description', 'metadata_json', 'sequence',
     ]
 
