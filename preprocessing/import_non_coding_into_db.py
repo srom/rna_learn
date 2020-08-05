@@ -105,7 +105,7 @@ def main():
 def import_records(engine, species_taxid, records):
     columns = [
         'sequence_id', 'species_taxid', 'sequence_type', 'chromosome_id', 
-        'location_json', 'strand', 'sequence_length', 'description', 
+        'location_json', 'strand', 'length', 'description', 
         'metadata_json', 'sequence',
     ]
     sequence_type = 'non_coding'

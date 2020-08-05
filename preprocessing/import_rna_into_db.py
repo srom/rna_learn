@@ -101,7 +101,7 @@ def main():
 def import_sequences(engine, species_taxid, sequence_records, superkingdom, known_trnas):
     columns = [
         'sequence_id', 'species_taxid', 'sequence_type', 
-        'chromosome_id', 'location_json', 'strand', 'sequence_length', 
+        'chromosome_id', 'location_json', 'strand', 'length', 
         'description', 'metadata_json', 'sequence',
     ]
 
@@ -124,7 +124,7 @@ def import_sequences(engine, species_taxid, sequence_records, superkingdom, know
             logger.warning(f'{species_taxid} | Invalid sequence type information: {e.message}')
             continue
 
-        # A handful of species have mRNA sequences reported.
+        # A handful of species have sequences marked as mRNA.
         # These should be handled as CDS.
         if sequence_type == 'mRNA':
             continue
