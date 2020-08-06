@@ -256,6 +256,7 @@ def variational_conv1d_densenet_encoder(
     n_layers,
     kernel_sizes,
     strides=None,
+    dilation_rates=None,
     l2_reg=1e-4,
     dropout=0.5,
 ):
@@ -264,6 +265,8 @@ def variational_conv1d_densenet_encoder(
 
     if strides is None:
         strides = [1] * n_layers
+    if dilation_rates is None:
+        dilation_rates = [1] * n_layers
 
     if len(strides) != n_layers:
         raise ValueError('Strides argument must specify one stride per layer')
@@ -279,11 +282,13 @@ def variational_conv1d_densenet_encoder(
     for l in range(n_layers):
         kernel_size = kernel_sizes[l]
         stride = strides[l]
+        dilation_rate = dilation_rates[l]
 
         out = keras.layers.Conv1D(
             filters=growth_rate, 
             kernel_size=kernel_size,
             strides=stride,
+            dilation_rate=dilation_rate,
             padding='same',
             activation='relu',
             kernel_regularizer=keras.regularizers.l2(l=l2_reg),
