@@ -269,7 +269,9 @@ def variational_conv1d_densenet_encoder(
         dilation_rates = [1] * n_layers
 
     if len(strides) != n_layers:
-        raise ValueError('Strides argument must specify one stride per layer')
+        raise ValueError('strides argument must specify one stride per layer')
+    if len(dilation_rates) != n_layers:
+        raise ValueError('dilation_rates argument must specify one dilation_rate per layer')
 
     n_mvn_params = tfp.layers.MultivariateNormalTriL.params_size(encoding_size)
 
