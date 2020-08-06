@@ -8,9 +8,6 @@ from .alphabet import ALPHABET_DNA
 from .load_sequences import TrainingSequence
 
 
-DB_PATH = 'data/condensed_traits/db/seq.db'
-
-
 class TestTrainingSequence(unittest.TestCase):
 
     def test_training_sequence(self):
@@ -18,7 +15,10 @@ class TestTrainingSequence(unittest.TestCase):
         This test uses the actual database, therefore it is not a 
         unittest per se but rather some sort of functional test.
         """
-        db_path = os.path.join(os.getcwd(), DB_PATH)
+        db_path = os.path.join(
+            os.getcwd(), 
+            'data/condensed_traits/db/seq.db',
+        )
         engine = create_engine(f'sqlite+pysqlite:///{db_path}')
 
         tf_sequence = TrainingSequence(

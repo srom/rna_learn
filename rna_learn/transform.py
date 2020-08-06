@@ -3,10 +3,24 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 
-from .alphabet import CODON_REDUNDANCY
+from .alphabet import (
+    ALPHABET_DNA,
+    ALPHABET_PROTEIN,
+    CODON_REDUNDANCY,
+)
 
 
-def sequence_embedding(x, alphabet, unknown_chars=('-', 'X'), dtype='float32'):
+# https://www.bioinformatics.org/sms/iupac.html
+IUPAC_NUCLEOTIDES_AMBIGUOUS_CHARS = (
+    '-', '.', 'R', 'Y', 'S', 'W', 'K', 
+    'M', 'B', 'D', 'H', 'V', 'N', 'X', 
+)
+IUPAC_AA_AMBIGUOUS_CHARS = (
+    '-', '.',
+)
+
+
+def sequence_embedding(x, alphabet, ambiguous_chars=None, dtype='float32'):
     """
     Args:
       x: sequence of strings
@@ -14,7 +28,14 @@ def sequence_embedding(x, alphabet, unknown_chars=('-', 'X'), dtype='float32'):
     """
     mask_value = np.array([0] * len(alphabet), dtype=dtype)
 
-    x_one_hot = one_hot_encode_sequences(x, alphabet, unknown_chars)
+    if ambiguous_chars is None and alphabet == ALPHABET_DNA:
+        ambiguous_chars = IUPAC_NUCLEOTIDES_AMBIGUOUS_CHARS
+    elif ambiguous_chars is None and alphabet == ALPHABET_DNA:
+        ambiguous_chars = IUPAC_AA_AMBIGUOUS_CHARS
+    elif ambiguous_chars is None:
+        ambiguous_chars = []
+
+    x_one_hot = one_hot_encode_sequences(x, alphabet, ambiguous_chars)
 
     return tf.keras.preprocessing.sequence.pad_sequences(
         x_one_hot, 
@@ -24,10 +45,10 @@ def sequence_embedding(x, alphabet, unknown_chars=('-', 'X'), dtype='float32'):
     )
 
 
-def one_hot_encode_sequences(x, alphabet, unknown_chars):
+def one_hot_encode_sequences(x, alphabet, ambiguous_chars):
     lookup = {
-        ord(unknown_char): [0.] * len(alphabet) 
-        for unknown_char in unknown_chars
+        ord(ambiguous_char): [0.] * len(alphabet) 
+        for ambiguous_char in ambiguous_chars
     }
     for i, l in enumerate(alphabet):
         key = ord(l)

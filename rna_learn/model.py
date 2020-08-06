@@ -216,6 +216,7 @@ def variational_conv1d_densenet(
     n_layers,
     kernel_sizes,
     strides=None,
+    dilation_rates=None,
     decoder_n_hidden=100,
     l2_reg=1e-4,
     dropout=0.5,
@@ -233,6 +234,7 @@ def variational_conv1d_densenet(
         n_layers,
         kernel_sizes,
         strides=strides,
+        dilation_rates=dilation_rates,
         l2_reg=l2_reg,
         dropout=dropout,
     )
