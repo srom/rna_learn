@@ -175,7 +175,7 @@ def main():
                 log_dir=log_dir,
                 histogram_freq=0,
                 write_graph=False,
-                update_freq='epoch',
+                update_freq=1000,
                 embeddings_freq=0,
             ),
             SaveModelCallback(
