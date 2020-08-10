@@ -37,15 +37,20 @@ def compute_inverse_probability_weights(growth_temperatures, step=3):
     bins = list(range(min_, max_, step)) + [max_]
     total = len(growth_temperatures)
     values, _ = np.histogram(growth_temperatures, bins)
-    return {b: total / values[i] for i, b in enumerate(bins[:-1])}, bins
+    weights_dict = {
+        b: total / values[i]
+        for i, b in enumerate(bins[:-1])
+    }
+    return weights_dict, bins
 
 
 def assign_weight_to_batch_values(growth_temperatures, weights_dict, bins, dtype):
     index = np.digitize(growth_temperatures, bins)
-    return np.array(
+    weights_u = np.array(
         [weights_dict[bins[ix-1]] for ix in index],
         dtype=dtype,
     )
+    return weights_u / np.sum(weights_u)
 
 
 def load_partial_test_set(

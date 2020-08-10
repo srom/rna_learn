@@ -14,7 +14,7 @@ from .alphabet import ALPHABET_DNA
 from .model import (
     variational_conv1d_densenet,
     compile_variational_model,
-    MeanAbsoluteError,
+    DenormalizedMAE,
 )
 from .load_sequences import (
     TrainingSequence,
@@ -131,7 +131,7 @@ def main():
     compile_variational_model(
         model, 
         learning_rate=learning_rate,
-        metrics=[MeanAbsoluteError(mean, std)],
+        weighted_metrics=[DenormalizedMAE(mean=mean, std=std)],
     )
 
     if resume:

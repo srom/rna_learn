@@ -2,6 +2,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 import tensorflow_probability as tfp
+from tensorflow.python.keras.losses import mean_absolute_error
+from tensorflow.python.keras.metrics import MeanMetricWrapper
 
 
 def rnn_regression_model(alphabet_size, n_timesteps=None, n_hidden=100, dropout=0.5, n_lstm=1):
@@ -337,12 +339,18 @@ def variational_conv1d_densenet_decoder(
     return keras.Model(inputs=encoded_inputs, outputs=decoded_outputs)
 
 
-def compile_variational_model(model, learning_rate, metrics=None):
+def compile_variational_model(
+    model, 
+    learning_rate, 
+    metrics=None,
+    weighted_metrics=None,
+):
     negative_log_likelihood = lambda x, rv_x: -rv_x.log_prob(x)
     model.compile(
         optimizer=tf.optimizers.Adam(learning_rate=learning_rate, amsgrad=True),
         loss=negative_log_likelihood,
         metrics=metrics,
+        weighted_metrics=weighted_metrics,
     )
 
 
@@ -442,3 +450,20 @@ class MeanAbsoluteError(tf.keras.losses.Loss):
             tf.keras.backend.abs(y_t - y_p),
             axis=-1,
         )
+
+
+class DenormalizedMAE(MeanMetricWrapper):
+
+    def __init__(self, name='mae', dtype=None, mean=None, std=None):
+        self.mean = mean
+        self.std = std
+        super().__init__(
+            mean_absolute_error, 
+            name, 
+            dtype=dtype,
+        )
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_t = (y_true * self.std) + self.mean
+        y_p = (y_pred * self.std) + self.mean
+        return super().update_state(y_t, y_p, sample_weight)
