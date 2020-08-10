@@ -43,6 +43,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_epochs', type=int, default=10)
     parser.add_argument('--db_path', type=str, default=None)
+    parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
     run_id = args.run_id
@@ -51,6 +52,7 @@ def main():
     batch_size = args.batch_size
     n_epochs = args.n_epochs
     db_path = args.db_path
+    dtype = args.dtype
 
     if run_id is None and resume:
         logger.error('Specify --run_id to resume run')
@@ -110,13 +112,16 @@ def main():
         }
 
     logger.info('Loading data')
-    x_test, y_test, y_test_norm, mean, std, tmps = load_partial_test_set(engine)
+    x_test, y_test, y_test_norm, mean, std, tmps = load_partial_test_set(
+        engine,
+        dtype=dtype,
+    )
     bin_to_weights, bins = compute_inverse_probability_weights(tmps)
     sample_weights = assign_weight_to_batch_values(
         y_test, 
         bin_to_weights, 
         bins,
-        dtype=y_test.dtype,
+        dtype=dtype,
     )
     validation_data = (x_test, y_test_norm, sample_weights)
 
@@ -126,6 +131,7 @@ def main():
         temperatures=tmps,
         mean=mean,
         std=std,
+        dtype=dtype,
         alphabet=metadata['alphabet'], 
         random_seed=metadata['seed'],
     )

@@ -44,7 +44,12 @@ def compute_inverse_probability_weights(growth_temperatures, step=3):
     return weights_dict, bins
 
 
-def assign_weight_to_batch_values(growth_temperatures, weights_dict, bins, dtype):
+def assign_weight_to_batch_values(
+    growth_temperatures, 
+    weights_dict, 
+    bins, 
+    dtype='float32',
+):
     index = np.digitize(growth_temperatures, bins)
     weights_u = np.array(
         [weights_dict[bins[ix-1]] for ix in index],
