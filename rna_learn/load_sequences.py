@@ -62,7 +62,7 @@ def load_partial_test_set(
 ):
     rs = np.random.RandomState(seed)
     rowids = load_test_sequence_rowids(engine)
-    _, mean, std = load_growth_temperatures(engine)
+    temperatures, mean, std = load_growth_temperatures(engine)
     selected_rowids = rs.choice(rowids, size=n_records, replace=False)
     df = load_batch_dataframe(engine, selected_rowids)
 
@@ -73,7 +73,7 @@ def load_partial_test_set(
     )
     y_test = df['growth_tmp'].values
     y_test_norm = normalize(y_test, mean, std)
-    return x_test, y_test, y_test_norm, mean, std
+    return x_test, y_test, y_test_norm, mean, std, temperatures
 
 
 def load_batch_dataframe(engine, batch_rowids):
@@ -90,7 +90,16 @@ def load_batch_dataframe(engine, batch_rowids):
 
 class TrainingSequence(tf.keras.utils.Sequence):
 
-    def __init__(self, engine, batch_size, alphabet, dtype='float32', random_seed=None):
+    def __init__(self, 
+        engine,
+        batch_size, 
+        alphabet, 
+        temperatures=None,
+        mean=None, 
+        std=None,
+        dtype='float32', 
+        random_seed=None,
+    ):
         self.rs = np.random.RandomState(random_seed)
 
         rowids = load_train_sequence_rowids(engine)
@@ -102,8 +111,10 @@ class TrainingSequence(tf.keras.utils.Sequence):
 
         # Compute inverse probability weights based on the frequency 
         # of growth temperatures in the whole dataset.
-        temperatures, mean, std = load_growth_temperatures(engine)
-        bin_to_weights, bins = compute_inverse_probability_weights(temperatures) 
+        if temperatures is None:
+            temperatures, mean, std = load_growth_temperatures(engine)
+
+        bin_to_weights, bins = compute_inverse_probability_weights(temperatures)
         self.bin_to_weights = bin_to_weights
         self.bins = bins
         self.mean = mean

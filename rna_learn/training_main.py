@@ -19,6 +19,8 @@ from .model import (
 from .load_sequences import (
     TrainingSequence,
     load_partial_test_set,
+    assign_weight_to_batch_values,
+    compute_inverse_probability_weights,
 )
 from .utilities import (
     SaveModelCallback, 
@@ -108,14 +110,25 @@ def main():
         }
 
     logger.info('Loading data')
+    x_test, y_test, y_test_norm, mean, std, tmps = load_partial_test_set(engine)
+    bin_to_weights, bins = compute_inverse_probability_weights(tmps)
+    sample_weights = assign_weight_to_batch_values(
+        y_test, 
+        bin_to_weights, 
+        bins,
+        dtype=y_test.dtype,
+    )
+    validation_data = (x_test, y_test_norm, sample_weights)
+
     training_sequence = TrainingSequence(
         engine, 
         batch_size=batch_size, 
+        temperatures=tmps,
+        mean=mean,
+        std=std,
         alphabet=metadata['alphabet'], 
         random_seed=metadata['seed'],
     )
-    x_test, _, y_test_norm, mean, std = load_partial_test_set(engine)
-    validation_data = (x_test, y_test_norm)
 
     _, _, _, model = variational_conv1d_densenet(
         encoding_size=metadata['encoding_size'],
