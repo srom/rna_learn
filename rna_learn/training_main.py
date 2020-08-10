@@ -43,6 +43,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_epochs', type=int, default=10)
     parser.add_argument('--db_path', type=str, default=None)
+    parser.add_argument('--verbose', type=int, default=1)
     parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
@@ -52,6 +53,7 @@ def main():
     batch_size = args.batch_size
     n_epochs = args.n_epochs
     db_path = args.db_path
+    verbose = args.verbose
     dtype = args.dtype
 
     if run_id is None and resume:
@@ -169,7 +171,7 @@ def main():
         validation_data=validation_data,
         epochs=epochs,
         initial_epoch=initial_epoch,
-        verbose=1,
+        verbose=verbose,
         callbacks=[
             tf.keras.callbacks.TensorBoard(
                 log_dir=log_dir,
