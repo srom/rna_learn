@@ -74,11 +74,10 @@ def main():
     metadata_path = os.path.join(output_folder, f'metadata.json')
     log_dir = os.path.join(os.getcwd(), f'summary_log/{run_id}')
 
-    for dir_path in [output_folder, log_dir]:
-        try:
-            os.makedirs(output_folder)
-        except FileExistsError:
-            pass
+    try:
+        os.makedirs(output_folder)
+    except FileExistsError:
+        pass
 
     if resume:
         with open(metadata_path, 'r') as f:
