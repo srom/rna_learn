@@ -465,5 +465,5 @@ class DenormalizedMAE(MeanMetricWrapper):
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_t = (y_true * self.std) + self.mean
-        y_p = (y_pred * self.std) + self.mean
+        y_p = (y_pred.mean() * self.std) + self.mean
         return super().update_state(y_t, y_p, sample_weight)
