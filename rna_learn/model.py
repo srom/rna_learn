@@ -460,14 +460,10 @@ class MeanAbsoluteError(tf.keras.losses.Loss):
 
 class DenormalizedMAE(MeanMetricWrapper):
 
-    def __init__(self, name='mae', dtype=None, mean=None, std=None):
-        self.mean = mean
-        self.std = std
-        super().__init__(
-            mean_absolute_error, 
-            name, 
-            dtype=dtype,
-        )
+    def __init__(self, mean, std, name='mae', dtype='float32'):
+        self.mean = tf.convert_to_tensor(mean, dtype=dtype)
+        self.std = tf.convert_to_tensor(std, dtype=dtype)
+        super().__init__(mean_absolute_error, name, dtype=dtype)
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_t = (y_true * self.std) + self.mean

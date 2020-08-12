@@ -168,7 +168,13 @@ def main():
     compile_regression_model(
         model, 
         learning_rate=learning_rate,
-        weighted_metrics=[DenormalizedMAE(mean=mean, std=std)],
+        weighted_metrics=[
+            DenormalizedMAE(
+                mean=mean, 
+                std=std,
+                dtype=dtype,
+            )
+        ],
     )
 
     if resume:
