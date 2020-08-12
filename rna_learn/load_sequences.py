@@ -114,11 +114,11 @@ class TrainingSequence(tf.keras.utils.Sequence):
             replace=False,
         )
 
-        # Compute inverse probability weights based on the frequency 
-        # of growth temperatures in the whole dataset.
         if temperatures is None:
             temperatures, mean, std = load_growth_temperatures(engine)
 
+        # Compute inverse probability weights based on the frequency 
+        # of growth temperatures in the whole dataset.
         bin_to_weights, bins = compute_inverse_probability_weights(temperatures)
         self.bin_to_weights = bin_to_weights
         self.bins = bins

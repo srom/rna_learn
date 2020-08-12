@@ -47,7 +47,7 @@ def sequence_embedding(x, alphabet, ambiguous_chars=None, dtype='float32'):
 
 def one_hot_encode_sequences(x, alphabet, ambiguous_chars):
     lookup = {
-        ord(ambiguous_char): [0.] * len(alphabet) 
+        ord(ambiguous_char): [1.] * len(alphabet) 
         for ambiguous_char in ambiguous_chars
     }
     for i, l in enumerate(alphabet):
