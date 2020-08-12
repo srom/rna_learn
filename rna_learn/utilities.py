@@ -26,13 +26,13 @@ class SaveModelCallback(tf.keras.callbacks.Callback):
         self.best_loss = metadata.get(self.monitor, np.inf)
 
     def on_epoch_end(self, epoch, logs):
-        val_loss = logs[self.monitor]
+        loss = logs[self.monitor]
 
-        if val_loss < self.best_loss:
+        if loss < self.best_loss:
             self.model.save(self.model_path)
 
             self.metadata['n_epochs'] = epoch + 1
-            self.metadata[self.monitor] = val_loss
+            self.metadata[self.monitor] = loss
 
             for metric in self.metrics or []:
                 if metric in logs:
@@ -41,7 +41,7 @@ class SaveModelCallback(tf.keras.callbacks.Callback):
             with open(self.metadata_path, 'w') as f:
                 json.dump(self.metadata, f)
 
-            self.best_loss = val_loss
+            self.best_loss = loss
 
 
 def generate_random_run_id():

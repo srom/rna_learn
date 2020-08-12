@@ -161,6 +161,7 @@ def conv1d_densenet_regression_model(
     n_layers,
     kernel_sizes,
     strides=None,
+    dilation_rates=None,
     l2_reg=1e-4,
     dropout=0.5,
     masking=False,
@@ -170,9 +171,13 @@ def conv1d_densenet_regression_model(
 
     if strides is None:
         strides = [1] * n_layers
+    if dilation_rates is None:
+        dilation_rates = [1] * n_layers
 
     if len(strides) != n_layers:
-        raise ValueError('Strides argument must specify one stride per layer')
+        raise ValueError('strides argument must specify one stride per layer')
+    if len(dilation_rates) != n_layers:
+        raise ValueError('dilation_rates argument must specify one dilation_rate per layer')
 
     inputs = keras.Input(shape=(None, alphabet_size), name='sequence')
 
@@ -185,11 +190,13 @@ def conv1d_densenet_regression_model(
     for l in range(n_layers):
         kernel_size = kernel_sizes[l]
         stride = strides[l]
+        dilation_rate = dilation_rates[l]
 
         out = keras.layers.Conv1D(
             filters=growth_rate, 
             kernel_size=kernel_size,
             strides=stride,
+            dilation_rate=dilation_rate,
             padding='same',
             activation='relu',
             kernel_regularizer=keras.regularizers.l2(l=l2_reg),

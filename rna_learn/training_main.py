@@ -41,6 +41,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_id', type=str, default=None)
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--variational', action='store_true')
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_epochs', type=int, default=10)
@@ -51,6 +52,7 @@ def main():
 
     run_id = args.run_id
     resume = args.resume
+    variational = args.variational
     learning_rate = args.learning_rate
     batch_size = args.batch_size
     n_epochs = args.n_epochs
@@ -139,43 +141,51 @@ def main():
         random_seed=metadata['seed'],
     )
 
-    # _, _, _, model = variational_conv1d_densenet(
-    #     encoding_size=metadata['encoding_size'],
-    #     alphabet_size=len(metadata['alphabet']),
-    #     growth_rate=metadata['growth_rate'],
-    #     n_layers=metadata['n_layers'],
-    #     kernel_sizes=metadata['kernel_sizes'],
-    #     dilation_rates=metadata['dilation_rates'],
-    #     l2_reg=metadata['l2_reg'],
-    #     dropout=metadata['dropout'],
-    #     decoder_n_hidden=metadata['decoder_n_hidden'],
-    # )
-    # compile_variational_model(
-    #     model, 
-    #     learning_rate=learning_rate,
-    #     weighted_metrics=[DenormalizedMAE(mean=mean, std=std)],
-    # )
-
-    model = conv1d_densenet_regression_model(
-        alphabet_size=len(metadata['alphabet']),
-        growth_rate=metadata['growth_rate'],
-        n_layers=metadata['n_layers'],
-        kernel_sizes=metadata['kernel_sizes'],
-        l2_reg=metadata['l2_reg'],
-        dropout=metadata['dropout'],
-        masking=True,
-    )
-    compile_regression_model(
-        model, 
-        learning_rate=learning_rate,
-        weighted_metrics=[
-            DenormalizedMAE(
-                mean=mean, 
-                std=std,
-                dtype=dtype,
-            )
-        ],
-    )
+    if variational:
+        _, _, _, model = variational_conv1d_densenet(
+            encoding_size=metadata['encoding_size'],
+            alphabet_size=len(metadata['alphabet']),
+            growth_rate=metadata['growth_rate'],
+            n_layers=metadata['n_layers'],
+            kernel_sizes=metadata['kernel_sizes'],
+            dilation_rates=metadata['dilation_rates'],
+            l2_reg=metadata['l2_reg'],
+            dropout=metadata['dropout'],
+            decoder_n_hidden=metadata['decoder_n_hidden'],
+        )
+        compile_variational_model(
+            model, 
+            learning_rate=learning_rate,
+            weighted_metrics=[
+                DenormalizedMAE(
+                    mean=mean, 
+                    std=std,
+                    dtype=dtype,
+                )
+            ],
+        )
+    else:
+        model = conv1d_densenet_regression_model(
+            alphabet_size=len(metadata['alphabet']),
+            growth_rate=metadata['growth_rate'],
+            n_layers=metadata['n_layers'],
+            kernel_sizes=metadata['kernel_sizes'],
+            dilation_rates=metadata['dilation_rates'],
+            l2_reg=metadata['l2_reg'],
+            dropout=metadata['dropout'],
+            masking=True,
+        )
+        compile_regression_model(
+            model, 
+            learning_rate=learning_rate,
+            weighted_metrics=[
+                DenormalizedMAE(
+                    mean=mean, 
+                    std=std,
+                    dtype=dtype,
+                )
+            ],
+        )
 
     if resume:
         logger.info(f'Resuming from {model_path}')
