@@ -7,7 +7,7 @@ from .transform import sequence_embedding, normalize
 
 
 LOAD_ROWIDS_QUERY = """
-select rowid from sequences
+select rowid, length from sequences
 where species_taxid in (
     select species_taxid from train_test_split
     where in_test_set = ?
@@ -17,7 +17,7 @@ where species_taxid in (
 
 def load_train_sequence_rowids(engine):
     df = pd.read_sql(LOAD_ROWIDS_QUERY, engine, params=(0,))
-    return df['rowid'].values
+    return df['rowid'].values, df['length'].values
 
 
 def load_test_sequence_rowids(engine):
@@ -93,6 +93,59 @@ def load_batch_dataframe(engine, batch_rowids):
     return pd.read_sql(query, engine)
 
 
+def make_rowid_groups(rowids, lengths, bins=None):
+    if bins is None:
+        bins = [
+            1, 500, 1000, 2000, 3000, 4000, 
+            5000, 1e4, 2e4, np.inf,
+        ]
+
+    groups = []
+    for min_v, max_v in zip(bins, bins[1:]):
+        group_ix = [
+            i for i, length in enumerate(lengths)
+            if length >= min_v and length < max_v
+        ]
+        groups.append(rowids[group_ix])
+
+    return groups
+
+
+def shuffle_rowid_groups(groups, rs):
+    for i in range(len(groups)):
+        groups[i] = rs.choice(
+            groups[i], 
+            size=len(groups[i]), 
+            replace=False,
+        )
+
+
+def get_batched_rowids(groups, batch_size, rs):
+    batched_rowids = []
+    leftover_rowids = []
+    for group in groups:
+        n_batches = int(np.ceil(len(group) / batch_size))
+        for i in range(n_batches):
+            a = i * batch_size
+            b = (i + 1) * batch_size
+            batch = group[a:b]
+            if len(batch) == batch_size:
+                batched_rowids.append(batch)
+            else:
+                leftover_rowids += batch.tolist()
+
+    ix = list(range(len(batched_rowids)))
+    batch_ids = rs.choice(ix, size=len(ix), replace=False)
+
+    rowids = []
+    for i in batch_ids:
+        rowids += batched_rowids[i].tolist()
+
+    rowids += leftover_rowids
+
+    return np.array(rowids)
+
+
 class TrainingSequence(tf.keras.utils.Sequence):
 
     def __init__(self, 
@@ -107,11 +160,15 @@ class TrainingSequence(tf.keras.utils.Sequence):
     ):
         self.rs = np.random.RandomState(random_seed)
 
-        rowids = load_train_sequence_rowids(engine)
-        self.rowids = self.rs.choice(
-            rowids, 
-            size=len(rowids), 
-            replace=False,
+        rowids, lengths = load_train_sequence_rowids(engine)
+
+        self.num_batches = int(np.ceil(len(rowids) / batch_size))
+        self.rowid_groups = make_rowid_groups(rowids, lengths)
+        shuffle_rowid_groups(self.rowid_groups, self.rs)
+        self.rowids = get_batched_rowids(
+            self.rowid_groups, 
+            batch_size,
+            self.rs,
         )
 
         if temperatures is None:
@@ -131,7 +188,7 @@ class TrainingSequence(tf.keras.utils.Sequence):
         self.dtype = dtype
 
     def __len__(self):
-        return int(np.ceil(len(self.rowids) / self.batch_size))
+        return self.num_batches
 
     def __getitem__(self, batch_ix):
         a = batch_ix * self.batch_size
@@ -163,8 +220,9 @@ class TrainingSequence(tf.keras.utils.Sequence):
         """
         Re-shuffle ahead of next epoch.
         """
-        self.rowids = self.rs.choice(
-            self.rowids, 
-            size=len(self.rowids), 
-            replace=False,
+        shuffle_rowid_groups(self.rowid_groups, self.rs)
+        self.rowids = get_batched_rowids(
+            self.rowid_groups, 
+            self.batch_size,
+            self.rs,
         )
