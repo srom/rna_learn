@@ -169,8 +169,7 @@ class BatchedSequence(tf.keras.utils.Sequence):
         self.dtype = dtype
 
     def __len__(self):
-        #return self.num_batches
-        return 1
+        return self.num_batches
 
     def __getitem__(self, batch_ix):
         a = batch_ix * self.batch_size
