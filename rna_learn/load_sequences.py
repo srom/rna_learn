@@ -22,7 +22,7 @@ def load_train_sequence_rowids(engine):
 
 def load_test_sequence_rowids(engine):
     df = pd.read_sql(LOAD_ROWIDS_QUERY, engine, params=(1,))
-    return df['rowid'].values
+    return df['rowid'].values, df['length'].values
 
 
 def load_growth_temperatures(engine):
@@ -56,29 +56,6 @@ def assign_weight_to_batch_values(
         dtype=dtype,
     )
     return weights_u / np.sum(weights_u)
-
-
-def load_partial_test_set(
-    engine, 
-    alphabet=ALPHABET_DNA,
-    dtype='float32', 
-    n_records=int(1e4), 
-    seed=123,
-):
-    rs = np.random.RandomState(seed)
-    rowids = load_test_sequence_rowids(engine)
-    temperatures, mean, std = load_growth_temperatures(engine)
-    selected_rowids = rs.choice(rowids, size=n_records, replace=False)
-    df = load_batch_dataframe(engine, selected_rowids)
-
-    x_test = sequence_embedding(
-        df['sequence'].values, 
-        alphabet, 
-        dtype=dtype,
-    )
-    y_test = df['growth_tmp'].values
-    y_test_norm = normalize(y_test, mean, std)
-    return x_test, y_test, y_test_norm, mean, std, temperatures
 
 
 def load_batch_dataframe(engine, batch_rowids):
@@ -146,12 +123,13 @@ def get_batched_rowids(groups, batch_size, rs):
     return np.array(rowids)
 
 
-class TrainingSequence(tf.keras.utils.Sequence):
+class BatchedSequence(tf.keras.utils.Sequence):
 
     def __init__(self, 
         engine,
         batch_size, 
         alphabet, 
+        is_test,
         temperatures=None,
         mean=None, 
         std=None,
@@ -160,7 +138,10 @@ class TrainingSequence(tf.keras.utils.Sequence):
     ):
         self.rs = np.random.RandomState(random_seed)
 
-        rowids, lengths = load_train_sequence_rowids(engine)
+        if is_test:
+            rowids, lengths = load_test_sequence_rowids(engine)
+        else:
+            rowids, lengths = load_train_sequence_rowids(engine)
 
         self.num_batches = int(np.ceil(len(rowids) / batch_size))
         self.rowid_groups = make_rowid_groups(rowids, lengths)
@@ -226,3 +207,16 @@ class TrainingSequence(tf.keras.utils.Sequence):
             self.batch_size,
             self.rs,
         )
+
+    def to_generator(self):
+        for i in range(self.num_batches):
+            yield self[i]
+
+    def to_dataset(self):
+        a, b, c = self[0]
+        dataset = tf.data.Dataset.from_generator(
+            self.to_generator,
+            (a.dtype, b.dtype, c.dtype),
+            (a.shape, b.shape, c.shape),
+        )
+        return dataset.batch(self.batch_size)

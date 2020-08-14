@@ -19,8 +19,8 @@ from .model import (
     DenormalizedMAE,
 )
 from .load_sequences import (
-    TrainingSequence,
-    load_partial_test_set,
+    BatchedSequence,
+    load_growth_temperatures,
     assign_weight_to_batch_values,
     compute_inverse_probability_weights,
 )
@@ -47,6 +47,7 @@ def main():
     parser.add_argument('--n_epochs', type=int, default=10)
     parser.add_argument('--db_path', type=str, default=None)
     parser.add_argument('--verbose', type=int, default=1)
+    parser.add_argument('--max_queue_size', type=int, default=10)
     parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
@@ -58,6 +59,7 @@ def main():
     n_epochs = args.n_epochs
     db_path = args.db_path
     verbose = args.verbose
+    max_queue_size = args.max_queue_size
     dtype = args.dtype
 
     if run_id is None and resume:
@@ -117,21 +119,11 @@ def main():
         }
 
     logger.info('Loading data')
-    x_test, y_test, y_test_norm, mean, std, tmps = load_partial_test_set(
-        engine,
-        dtype=dtype,
-    )
-    bin_to_weights, bins = compute_inverse_probability_weights(tmps)
-    sample_weights = assign_weight_to_batch_values(
-        y_test, 
-        bin_to_weights, 
-        bins,
-        dtype=dtype,
-    )
-    validation_data = (x_test, y_test_norm, sample_weights)
+    tmps, mean, std = load_growth_temperatures(engine)
 
-    training_sequence = TrainingSequence(
+    training_sequence = BatchedSequence(
         engine, 
+        is_test=False,
         batch_size=batch_size, 
         temperatures=tmps,
         mean=mean,
@@ -140,6 +132,18 @@ def main():
         alphabet=metadata['alphabet'], 
         random_seed=metadata['seed'],
     )
+    testing_sequence = BatchedSequence(
+        engine, 
+        is_test=True,
+        batch_size=batch_size, 
+        temperatures=tmps,
+        mean=mean,
+        std=std,
+        dtype=dtype,
+        alphabet=metadata['alphabet'], 
+        random_seed=metadata['seed'],
+    )
+    validation_data = testing_sequence.to_dataset()
 
     if variational:
         _, _, _, model = variational_conv1d_densenet(
@@ -201,6 +205,7 @@ def main():
     model.fit(
         training_sequence,
         validation_data=validation_data,
+        max_queue_size=max_queue_size,
         epochs=epochs,
         initial_epoch=initial_epoch,
         verbose=verbose,
