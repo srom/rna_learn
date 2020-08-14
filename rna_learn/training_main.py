@@ -143,7 +143,6 @@ def main():
         alphabet=metadata['alphabet'], 
         random_seed=metadata['seed'],
     )
-    validation_data = testing_sequence.to_dataset()
 
     if variational:
         _, _, _, model = variational_conv1d_densenet(
@@ -204,7 +203,7 @@ def main():
     logger.info(f'Training run {run_id}')
     model.fit(
         training_sequence,
-        validation_data=validation_data,
+        validation_data=testing_sequence,
         max_queue_size=max_queue_size,
         epochs=epochs,
         initial_epoch=initial_epoch,

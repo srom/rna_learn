@@ -169,7 +169,8 @@ class BatchedSequence(tf.keras.utils.Sequence):
         self.dtype = dtype
 
     def __len__(self):
-        return self.num_batches
+        #return self.num_batches
+        return 1
 
     def __getitem__(self, batch_ix):
         a = batch_ix * self.batch_size
@@ -207,16 +208,3 @@ class BatchedSequence(tf.keras.utils.Sequence):
             self.batch_size,
             self.rs,
         )
-
-    def to_generator(self):
-        for i in range(self.num_batches):
-            yield self[i]
-
-    def to_dataset(self):
-        a, b, c = self[0]
-        dataset = tf.data.Dataset.from_generator(
-            self.to_generator,
-            (a.dtype, b.dtype, c.dtype),
-            (a.shape, b.shape, c.shape),
-        )
-        return dataset.batch(self.batch_size)
