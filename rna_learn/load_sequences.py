@@ -44,18 +44,45 @@ def compute_inverse_probability_weights(growth_temperatures, step=3):
     return weights_dict, bins
 
 
-def assign_weight_to_batch_values(
+def compute_inverse_effective_sample(
     growth_temperatures, 
+    batch_size,
+    step=3, 
+    beta=0.99,
+):
+    """
+    Class-balanced weighting based on inverse effective sample.
+    https://arxiv.org/abs/1901.05555
+    """
+    min_ = int(np.floor(np.min(growth_temperatures)))
+    max_ = int(np.ceil(np.max(growth_temperatures)))
+    bins = list(range(min_, max_, step)) + [max_]
+    values, _ = np.histogram(growth_temperatures, bins)
+    inv_effective_sample_fn = lambda n: (1 - beta) / (1 - beta**n)
+    inv_effective_weights = np.apply_along_axis(
+        inv_effective_sample_fn, 
+        axis=0, 
+        arr=values,
+    )
+    weights_sum = np.sum(inv_effective_weights)
+    weights_dict = {
+        b: batch_size * inv_effective_weights[i] / weights_sum
+        for i, b in enumerate(bins[:-1])
+    }
+    return weights_dict, bins
+
+
+def assign_weight_to_batch_values(
+    batch_temperatures, 
     weights_dict, 
     bins, 
     dtype='float32',
 ):
-    index = np.digitize(growth_temperatures, bins)
-    weights_u = np.array(
+    index = np.digitize(batch_temperatures, bins)
+    return np.array(
         [weights_dict[bins[ix-1]] for ix in index],
         dtype=dtype,
     )
-    return weights_u / np.sum(weights_u)
 
 
 def load_batch_dataframe(engine, batch_rowids):
@@ -155,9 +182,10 @@ class BatchedSequence(tf.keras.utils.Sequence):
         if temperatures is None:
             temperatures, mean, std = load_growth_temperatures(engine)
 
-        # Compute inverse probability weights based on the frequency 
-        # of growth temperatures in the whole dataset.
-        bin_to_weights, bins = compute_inverse_probability_weights(temperatures)
+        bin_to_weights, bins = compute_inverse_effective_sample(
+            temperatures,
+            batch_size,
+        )
         self.bin_to_weights = bin_to_weights
         self.bins = bins
         self.mean = mean
