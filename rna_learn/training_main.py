@@ -181,11 +181,20 @@ def main():
         compile_regression_model(
             model, 
             learning_rate=learning_rate,
+            metrics=[
+                DenormalizedMAE(
+                    mean=mean, 
+                    std=std,
+                    dtype=dtype,
+                    name='mae',
+                )
+            ],
             weighted_metrics=[
                 DenormalizedMAE(
                     mean=mean, 
                     std=std,
                     dtype=dtype,
+                    name='w_mae',
                 )
             ],
         )

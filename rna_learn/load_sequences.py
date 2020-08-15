@@ -31,10 +31,10 @@ def load_growth_temperatures(engine):
     return growth_tmps, np.mean(growth_tmps), np.std(growth_tmps)
 
 
-def compute_inverse_probability_weights(growth_temperatures, step=3):
+def compute_inverse_probability_weights(growth_temperatures, bins_step=3):
     min_ = int(np.floor(np.min(growth_temperatures)))
     max_ = int(np.ceil(np.max(growth_temperatures)))
-    bins = list(range(min_, max_, step)) + [max_]
+    bins = list(range(min_, max_, bins_step)) + [max_]
     total = len(growth_temperatures)
     values, _ = np.histogram(growth_temperatures, bins)
     weights_dict = {
@@ -47,16 +47,18 @@ def compute_inverse_probability_weights(growth_temperatures, step=3):
 def compute_inverse_effective_sample(
     growth_temperatures, 
     batch_size,
-    step=3, 
+    bins_step=3, 
     beta=0.99,
 ):
     """
     Class-balanced weighting based on inverse effective sample.
+    Effective sample = (1 - beta^n) / (1 - beta)
+    Beta is an parameter; 0.99 is a good value in practice.
     https://arxiv.org/abs/1901.05555
     """
     min_ = int(np.floor(np.min(growth_temperatures)))
     max_ = int(np.ceil(np.max(growth_temperatures)))
-    bins = list(range(min_, max_, step)) + [max_]
+    bins = list(range(min_, max_, bins_step)) + [max_]
     values, _ = np.histogram(growth_temperatures, bins)
     inv_effective_sample_fn = lambda n: (1 - beta) / (1 - beta**n)
     inv_effective_weights = np.apply_along_axis(
@@ -64,9 +66,17 @@ def compute_inverse_effective_sample(
         axis=0, 
         arr=values,
     )
+    ###
+    # Factor inferred experimentally such that for a typical
+    # batch, the sum of weights will equal the batch size.
+    # A widely different distribution of temperatures would
+    # lead to a different factor.
+    factor = 4.72
+    alpha = factor * batch_size
+    ###
     weights_sum = np.sum(inv_effective_weights)
     weights_dict = {
-        b: batch_size * inv_effective_weights[i] / weights_sum
+        b: alpha * inv_effective_weights[i] / weights_sum
         for i, b in enumerate(bins[:-1])
     }
     return weights_dict, bins
