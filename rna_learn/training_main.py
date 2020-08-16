@@ -229,6 +229,7 @@ def main():
                 model_path=model_path,
                 metadata_path=metadata_path,
                 metadata=metadata,
+                metrics=('val_mae', 'val_w_mae'),
             ),
         ],
     )
