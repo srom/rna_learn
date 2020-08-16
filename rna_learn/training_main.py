@@ -156,17 +156,7 @@ def main():
             dropout=metadata['dropout'],
             decoder_n_hidden=metadata['decoder_n_hidden'],
         )
-        compile_variational_model(
-            model, 
-            learning_rate=learning_rate,
-            weighted_metrics=[
-                DenormalizedMAE(
-                    mean=mean, 
-                    std=std,
-                    dtype=dtype,
-                )
-            ],
-        )
+        compile_fn = compile_variational_model
     else:
         model = conv1d_densenet_regression_model(
             alphabet_size=len(metadata['alphabet']),
@@ -178,26 +168,28 @@ def main():
             dropout=metadata['dropout'],
             masking=True,
         )
-        compile_regression_model(
-            model, 
-            learning_rate=learning_rate,
-            metrics=[
-                DenormalizedMAE(
-                    mean=mean, 
-                    std=std,
-                    dtype=dtype,
-                    name='mae',
-                )
-            ],
-            weighted_metrics=[
-                DenormalizedMAE(
-                    mean=mean, 
-                    std=std,
-                    dtype=dtype,
-                    name='w_mae',
-                )
-            ],
-        )
+        compile_fn = compile_regression_model
+
+    compile_fn(
+        model, 
+        learning_rate=learning_rate,
+        metrics=[
+            DenormalizedMAE(
+                mean=mean, 
+                std=std,
+                dtype=dtype,
+                name='mae',
+            )
+        ],
+        weighted_metrics=[
+            DenormalizedMAE(
+                mean=mean, 
+                std=std,
+                dtype=dtype,
+                name='w_mae',
+            )
+        ],
+    )
 
     if resume:
         logger.info(f'Resuming from {model_path}')
