@@ -177,20 +177,11 @@ def main():
     compile_fn(
         model, 
         learning_rate=learning_rate,
-        metrics=[
-            DenormalizedMAE(
-                mean=mean, 
-                std=std,
-                dtype=dtype,
-                name='mae',
-            )
-        ],
         weighted_metrics=[
             DenormalizedMAE(
                 mean=mean, 
                 std=std,
                 dtype=dtype,
-                name='w_mae',
             )
         ],
     )
@@ -225,7 +216,6 @@ def main():
                 model_path=model_path,
                 metadata_path=metadata_path,
                 metadata=metadata,
-                metrics=('val_mae', 'val_w_mae'),
             ),
         ],
     )
