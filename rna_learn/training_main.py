@@ -124,6 +124,7 @@ def main():
     tmps, mean, std = load_growth_temperatures(engine)
 
     # Truncate long sequences because of memory constraints
+    # TODO: Split into parts instead
     max_sequence_length = int(1e4)
 
     training_sequence = BatchedSequence(
