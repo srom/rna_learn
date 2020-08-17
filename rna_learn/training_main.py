@@ -96,10 +96,10 @@ def main():
         encoding_size = 20
         decoder_n_hidden = 100
         growth_rate = 15
-        kernel_sizes = [2, 3, 5, 5, 10]
-        dilation_rates = [1, 1, 4, 1, 1]
+        kernel_sizes = [3, 5, 7, 11, 13, 11, 7, 5, 3]
+        dilation_rates = [1, 1, 1, 1, 1, 2, 3, 5, 11]
         n_layers = len(kernel_sizes)
-        l2_reg = 5e-4
+        l2_reg = 1e-5
 
         metadata = {
             'run_id': run_id,
