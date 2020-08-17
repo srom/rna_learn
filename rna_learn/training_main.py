@@ -97,7 +97,7 @@ def main():
         decoder_n_hidden = 100
         growth_rate = 15
         kernel_sizes = [3, 5, 7, 11, 13, 11, 7, 5, 3]
-        dilation_rates = [1, 1, 1, 1, 1, 2, 3, 5, 11]
+        dilation_rates = [1, 1, 1, 1, 1, 1, 1, 3, 1]
         n_layers = len(kernel_sizes)
         l2_reg = 1e-5
 
