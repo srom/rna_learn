@@ -95,7 +95,7 @@ def main():
 
         encoding_size = 20
         decoder_n_hidden = 100
-        growth_rate = 15
+        growth_rate = 10
         kernel_sizes = [3] + [5] * 9
         strides = None
         dilation_rates = None
