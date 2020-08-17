@@ -107,13 +107,7 @@ def load_batch_dataframe(engine, batch_rowids):
     return pd.read_sql(query, engine)
 
 
-def make_rowid_groups(rowids, lengths, bins=None):
-    if bins is None:
-        bins = [
-            1, 500, 1000, 2000, 3000, 4000, 
-            5000, 1e4, 2e4, np.inf,
-        ]
-
+def make_rowid_groups(rowids, lengths, bins):
     groups = []
     for min_v, max_v in zip(bins, bins[1:]):
         group_ix = [
@@ -181,8 +175,12 @@ class BatchedSequence(tf.keras.utils.Sequence):
         else:
             rowids, lengths = load_train_sequence_rowids(engine)
 
+        group_bins = [
+            1, 500, 1000, 2000, 3000, 4000, 
+            5000, 1e4, 2e4, np.inf,
+        ]
         self.num_batches = int(np.ceil(len(rowids) / batch_size))
-        self.rowid_groups = make_rowid_groups(rowids, lengths)
+        self.rowid_groups = make_rowid_groups(rowids, lengths, group_bins)
         shuffle_rowid_groups(self.rowid_groups, self.rs)
         self.rowids = get_batched_rowids(
             self.rowid_groups, 
