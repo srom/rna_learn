@@ -170,6 +170,7 @@ class BatchedSequence(tf.keras.utils.Sequence):
         temperatures=None,
         mean=None, 
         std=None,
+        max_sequence_length=None,
         dtype='float32', 
         random_seed=None,
     ):
@@ -203,6 +204,7 @@ class BatchedSequence(tf.keras.utils.Sequence):
 
         self.batch_size = batch_size
         self.alphabet = alphabet
+        self.max_sequence_length = max_sequence_length
         self.engine = engine
         self.dtype = dtype
 
@@ -220,6 +222,7 @@ class BatchedSequence(tf.keras.utils.Sequence):
             batch_df['sequence'].values, 
             self.alphabet, 
             dtype=self.dtype,
+            max_length=self.max_sequence_length,
         )
         batch_y = batch_df['growth_tmp'].values
         batch_y_norm = normalize(

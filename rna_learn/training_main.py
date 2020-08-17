@@ -95,7 +95,7 @@ def main():
 
         encoding_size = 20
         decoder_n_hidden = 100
-        growth_rate = 10
+        growth_rate = 15
         kernel_sizes = [3] + [5] * 9
         strides = None
         dilation_rates = None
@@ -123,6 +123,9 @@ def main():
     logger.info('Loading data')
     tmps, mean, std = load_growth_temperatures(engine)
 
+    # Truncate long sequences because of memory constraints
+    max_sequence_length = int(1e4)
+
     training_sequence = BatchedSequence(
         engine, 
         is_test=False,
@@ -132,6 +135,7 @@ def main():
         std=std,
         dtype=dtype,
         alphabet=metadata['alphabet'], 
+        max_sequence_length=max_sequence_length,
         random_seed=metadata['seed'],
     )
     testing_sequence = BatchedSequence(
@@ -142,7 +146,8 @@ def main():
         mean=mean,
         std=std,
         dtype=dtype,
-        alphabet=metadata['alphabet'], 
+        alphabet=metadata['alphabet'],
+        max_sequence_length=max_sequence_length, 
         random_seed=metadata['seed'],
     )
 

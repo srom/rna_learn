@@ -20,7 +20,13 @@ IUPAC_AA_AMBIGUOUS_CHARS = (
 )
 
 
-def sequence_embedding(x, alphabet, ambiguous_chars=None, dtype='float32'):
+def sequence_embedding(
+    x, 
+    alphabet, 
+    ambiguous_chars=None, 
+    dtype='float32',
+    max_length=None,
+):
     """
     Args:
       x: sequence of strings
@@ -30,12 +36,17 @@ def sequence_embedding(x, alphabet, ambiguous_chars=None, dtype='float32'):
 
     if ambiguous_chars is None and alphabet == ALPHABET_DNA:
         ambiguous_chars = IUPAC_NUCLEOTIDES_AMBIGUOUS_CHARS
-    elif ambiguous_chars is None and alphabet == ALPHABET_DNA:
+    elif ambiguous_chars is None and alphabet == ALPHABET_PROTEIN:
         ambiguous_chars = IUPAC_AA_AMBIGUOUS_CHARS
     elif ambiguous_chars is None:
         ambiguous_chars = []
 
-    x_one_hot = one_hot_encode_sequences(x, alphabet, ambiguous_chars)
+    x_one_hot = one_hot_encode_sequences(
+        x, 
+        alphabet, 
+        ambiguous_chars,
+        max_length,
+    )
 
     return tf.keras.preprocessing.sequence.pad_sequences(
         x_one_hot, 
@@ -45,7 +56,7 @@ def sequence_embedding(x, alphabet, ambiguous_chars=None, dtype='float32'):
     )
 
 
-def one_hot_encode_sequences(x, alphabet, ambiguous_chars):
+def one_hot_encode_sequences(x, alphabet, ambiguous_chars, max_length=None):
     lookup = {
         ord(ambiguous_char): [1.] * len(alphabet) 
         for ambiguous_char in ambiguous_chars
@@ -59,8 +70,11 @@ def one_hot_encode_sequences(x, alphabet, ambiguous_chars):
     output = []
     for x_i in x:
         row = []
-        for v in x_i:
+        for i, v in enumerate(x_i):
             row.append(lookup[ord(v)])
+
+            if max_length is not None and (i + 1) >= max_length:
+                break
 
         output.append(row)
 
