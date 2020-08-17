@@ -4,7 +4,7 @@ PEMKEY=$1
 IP=$2
 RUNID=$3
 
-echo "Syncing remote logs from run ${RUNID} from ${IP}"
+echo "Syncing remote logs for run ${RUNID} from ${IP}"
 rsync -avzhe "ssh -i ${PEMKEY}" ubuntu@$IP:/home/ubuntu/rna_learn/summary_log/$RUNID summary_log/
 
 echo "Launching tensorboard for run ${RUNID}"
