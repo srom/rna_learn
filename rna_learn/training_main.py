@@ -96,7 +96,8 @@ def main():
         encoding_size = 20
         decoder_n_hidden = 100
         growth_rate = 15
-        kernel_sizes = [3, 5, 7, 7, 7, 5, 3]
+        kernel_sizes = [3] + [5] * 9
+        strides = [3] + [1] * 9
         dilation_rates = None
         n_layers = len(kernel_sizes)
         l2_reg = 1e-5
@@ -111,6 +112,7 @@ def main():
             'growth_rate': growth_rate,
             'n_layers': n_layers,
             'kernel_sizes': kernel_sizes,
+            'strides': strides,
             'dilation_rates': dilation_rates,
             'l2_reg': l2_reg,
             'dropout': dropout_rate,
@@ -151,7 +153,8 @@ def main():
             growth_rate=metadata['growth_rate'],
             n_layers=metadata['n_layers'],
             kernel_sizes=metadata['kernel_sizes'],
-            dilation_rates=metadata['dilation_rates'],
+            strides=metadata.get('strides'),
+            dilation_rates=metadata.get('dilation_rates'),
             l2_reg=metadata['l2_reg'],
             dropout=metadata['dropout'],
             decoder_n_hidden=metadata['decoder_n_hidden'],
@@ -163,7 +166,8 @@ def main():
             growth_rate=metadata['growth_rate'],
             n_layers=metadata['n_layers'],
             kernel_sizes=metadata['kernel_sizes'],
-            dilation_rates=metadata['dilation_rates'],
+            strides=metadata.get('strides'),
+            dilation_rates=metadata.get('dilation_rates'),
             l2_reg=metadata['l2_reg'],
             dropout=metadata['dropout'],
             masking=True,
