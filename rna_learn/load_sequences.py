@@ -179,8 +179,7 @@ def split_rowids_exceeding_length(rowids, lengths, max_length):
         else:
             n_slices = int(np.ceil(length / max_length))
             for s in range(n_slices):
-                ix = s * max_length
-                new_rowids.append([rowid, ix])
+                new_rowids.append([rowid, s])
 
                 if (s + 1) == n_slices:
                     new_length = length - (s * max_length)
@@ -195,7 +194,7 @@ def split_rowids_exceeding_length(rowids, lengths, max_length):
     )
 
 
-def split_sequences(batch_df, batch_rowids, max_length, dtype):
+def get_inputs_from_batch(batch_df, batch_rowids, max_length, dtype):
     x_raw, y = [], []
     for rowid, ix in batch_rowids:
         a = ix * max_length
@@ -274,7 +273,7 @@ class SequenceBase(tf.keras.utils.Sequence):
         row_ids = batch_rowids[:, 0]
         batch_df = load_batch_dataframe(self.engine, row_ids)
 
-        x_raw, batch_y = split_sequences(
+        x_raw, batch_y = get_inputs_from_batch(
             batch_df, 
             batch_rowids, 
             self.max_sequence_length,

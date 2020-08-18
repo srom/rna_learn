@@ -50,6 +50,9 @@ class TestTrainingSequence(unittest.TestCase):
         self.assertIsInstance(y_a[0], np.float32)
         self.assertIsInstance(y_b[0], np.float32)
 
+        for i in range(10):
+            self.assertGreater(np.sum(x_a[i]), 0)
+
         first_rowid = tf_sequence.rowids[0][0]
 
         tf_sequence.on_epoch_end()
