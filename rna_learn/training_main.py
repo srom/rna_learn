@@ -19,7 +19,8 @@ from .model import (
     DenormalizedMAE,
 )
 from .load_sequences import (
-    BatchedSequence,
+    TrainingSequence,
+    TestingSequence,
     load_growth_temperatures,
     assign_weight_to_batch_values,
     compute_inverse_probability_weights,
@@ -127,9 +128,8 @@ def main():
     # TODO: Split into parts instead
     max_sequence_length = int(1e4)
 
-    training_sequence = BatchedSequence(
+    training_sequence = TrainingSequence(
         engine, 
-        is_test=False,
         batch_size=batch_size, 
         temperatures=tmps,
         mean=mean,
@@ -139,9 +139,8 @@ def main():
         max_sequence_length=max_sequence_length,
         random_seed=metadata['seed'],
     )
-    testing_sequence = BatchedSequence(
+    testing_sequence = TestingSequence(
         engine, 
-        is_test=True,
         batch_size=batch_size, 
         temperatures=tmps,
         mean=mean,
@@ -180,17 +179,7 @@ def main():
         )
         compile_fn = compile_regression_model
 
-    compile_fn(
-        model, 
-        learning_rate=learning_rate,
-        weighted_metrics=[
-            DenormalizedMAE(
-                mean=mean, 
-                std=std,
-                dtype=dtype,
-            )
-        ],
-    )
+    compile_fn(model, learning_rate)
 
     if resume:
         logger.info(f'Resuming from {model_path}')

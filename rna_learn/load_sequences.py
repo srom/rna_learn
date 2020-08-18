@@ -14,6 +14,11 @@ where species_taxid in (
 )
 """
 
+LOAD_ROWIDS_PER_SPECIES_QUERY = """
+select rowid, length from sequences
+where species_taxid = ?
+"""
+
 
 def load_train_sequence_rowids(engine):
     df = pd.read_sql(LOAD_ROWIDS_QUERY, engine, params=(0,))
@@ -22,6 +27,15 @@ def load_train_sequence_rowids(engine):
 
 def load_test_sequence_rowids(engine):
     df = pd.read_sql(LOAD_ROWIDS_QUERY, engine, params=(1,))
+    return df['rowid'].values, df['length'].values
+
+
+def load_species_rowids(engine, species_taxid):
+    df = pd.read_sql(
+        LOAD_ROWIDS_PER_SPECIES_QUERY, 
+        engine, 
+        params=(species_taxid,),
+    )
     return df['rowid'].values, df['length'].values
 
 
@@ -154,13 +168,12 @@ def get_batched_rowids(groups, batch_size, rs):
     return np.array(rowids)
 
 
-class BatchedSequence(tf.keras.utils.Sequence):
+class SequenceBase(tf.keras.utils.Sequence):
 
     def __init__(self, 
         engine,
         batch_size, 
         alphabet, 
-        is_test,
         temperatures=None,
         mean=None, 
         std=None,
@@ -169,11 +182,9 @@ class BatchedSequence(tf.keras.utils.Sequence):
         random_seed=None,
     ):
         self.rs = np.random.RandomState(random_seed)
+        self.engine = engine
 
-        if is_test:
-            rowids, lengths = load_test_sequence_rowids(engine)
-        else:
-            rowids, lengths = load_train_sequence_rowids(engine)
+        rowids, lengths = self.fetch_rowids_and_lengths()
 
         group_bins = [
             1, 500, 1000, 2000, 3000, 4000, 
@@ -203,7 +214,6 @@ class BatchedSequence(tf.keras.utils.Sequence):
         self.batch_size = batch_size
         self.alphabet = alphabet
         self.max_sequence_length = max_sequence_length
-        self.engine = engine
         self.dtype = dtype
 
     def __len__(self):
@@ -246,3 +256,38 @@ class BatchedSequence(tf.keras.utils.Sequence):
             self.batch_size,
             self.rs,
         )
+
+    def fetch_rowids_and_lengths(self):
+        raise NotImplementedError()
+
+
+class TrainingSequence(SequenceBase):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def fetch_rowids_and_lengths(self):
+        return load_train_sequence_rowids(self.engine)
+            
+
+class TestingSequence(SequenceBase):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def fetch_rowids_and_lengths(self):
+        return load_test_sequence_rowids(self.engine)
+
+
+class SpeciesSequence(SequenceBase):
+
+    def __init__(self, *args, **kwargs):
+        if 'species_taxid' not in kwargs:
+            raise ValueError('Species taxid not specified')
+        else:
+            self.species_taxid = kwargs.pop('species_taxid')
+
+        super().__init__(*args, **kwargs)
+
+    def fetch_rowids_and_lengths(self):
+        return load_species_rowids(self.engine, self.species_taxid)    

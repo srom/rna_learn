@@ -165,9 +165,13 @@ def conv1d_densenet_regression_model(
     l2_reg=1e-4,
     dropout=0.5,
     masking=False,
+    convert_to_tensor_fn=None,
 ):
     if len(kernel_sizes) != n_layers:
         raise ValueError('Kernel sizes argument must specify one kernel size per layer')
+
+    if convert_to_tensor_fn is None:
+        convert_to_tensor_fn = tfp.distributions.Distribution.sample
 
     if strides is None:
         strides = [1] * n_layers
@@ -213,7 +217,7 @@ def conv1d_densenet_regression_model(
         name='mean_and_std'
     )(x)
 
-    outputs = tfp.layers.IndependentNormal(1)(x)
+    outputs = tfp.layers.IndependentNormal(1, convert_to_tensor_fn)(x)
 
     return keras.Model(inputs=inputs, outputs=outputs)
 
