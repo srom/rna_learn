@@ -236,7 +236,7 @@ class SequenceBase(tf.keras.utils.Sequence):
             max_sequence_length,
         )
 
-        group_bins = [1, 250, 500, 1000, 2000, 3000, 4000, 5000, np.inf]
+        group_bins = [1, 250, 500, 1000, 2000, 3000, 4000, 5000, 10000, np.inf]
         self.rowid_groups = make_rowid_groups(rowids, lengths, group_bins)
         shuffle_rowid_groups(self.rowid_groups, self.rs)
         self.rowids = get_batched_rowids(
