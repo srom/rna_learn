@@ -190,7 +190,7 @@ def split_rowids_exceeding_length(rowids, lengths, max_length):
 
     return (
         np.array(new_rowids, dtype=rowids.dtype), 
-        np.array(lengths, dtype=lengths.dtype),
+        np.array(new_lengths, dtype=lengths.dtype),
     )
 
 
