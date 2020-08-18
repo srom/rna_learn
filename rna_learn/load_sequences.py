@@ -190,7 +190,7 @@ def expand_inputs_when_exceeding_length(batch_df, max_length):
             expanded_tmps.append(temperature)
 
     return (
-        np.array(expanded_sequences, dtype=sequences.dtype),,
+        np.array(expanded_sequences, dtype=sequences.dtype),
         np.array(expanded_tmps, dtype=temperatures.dtype),
     )
 
