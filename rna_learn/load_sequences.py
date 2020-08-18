@@ -61,7 +61,7 @@ def compute_inverse_probability_weights(growth_temperatures, bins_step=3):
 def compute_inverse_effective_sample(
     growth_temperatures, 
     batch_size,
-    bins_step=3, 
+    bins,
     beta=0.99,
 ):
     """
@@ -70,9 +70,6 @@ def compute_inverse_effective_sample(
     Beta is an parameter; 0.99 is a good value in practice.
     https://arxiv.org/abs/1901.05555
     """
-    min_ = int(np.floor(np.min(growth_temperatures)))
-    max_ = int(np.ceil(np.max(growth_temperatures)))
-    bins = list(range(min_, max_, bins_step)) + [max_]
     values, _ = np.histogram(growth_temperatures, bins)
     inv_effective_sample_fn = lambda n: (1 - beta) / (1 - beta**n)
     inv_effective_weights = np.apply_along_axis(
@@ -85,7 +82,7 @@ def compute_inverse_effective_sample(
     # batch, the sum of weights will equal the batch size.
     # A widely different distribution of temperatures would
     # lead to a different factor.
-    factor = 4.72
+    factor = 0.341
     alpha = factor * batch_size
     ###
     weights_sum = np.sum(inv_effective_weights)
@@ -93,7 +90,7 @@ def compute_inverse_effective_sample(
         b: alpha * inv_effective_weights[i] / weights_sum
         for i, b in enumerate(bins[:-1])
     }
-    return weights_dict, bins
+    return weights_dict
 
 
 def assign_weight_to_batch_values(
@@ -202,9 +199,11 @@ class SequenceBase(tf.keras.utils.Sequence):
         if temperatures is None:
             temperatures, mean, std = load_growth_temperatures(engine)
 
-        bin_to_weights, bins = compute_inverse_effective_sample(
+        bins = np.array([0, 20, 30, 40, 50, 60, 70, 80, 90, 105])
+        bin_to_weights = compute_inverse_effective_sample(
             temperatures,
             batch_size,
+            bins,
         )
         self.bin_to_weights = bin_to_weights
         self.bins = bins
