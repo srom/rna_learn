@@ -109,7 +109,7 @@ def assign_weight_to_batch_values(
 def load_batch_dataframe(engine, batch_rowids):
     batch_rowids_str = ','.join([str(r) for r in batch_rowids])
     query = f"""
-    select s.sequence, t.growth_tmp
+    select s.sequence, s.length, t.growth_tmp
     from sequences as s
     inner join species_traits as t
     on t.species_taxid = s.species_taxid
@@ -165,6 +165,36 @@ def get_batched_rowids(groups, batch_size, rs):
     return np.array(rowids)
 
 
+def expand_inputs_when_exceeding_length(batch_df, max_length):
+    sequences = batch_df['sequence'].values
+    temperatures = batch_df['growth_tmp'].values
+    lengths = batch_df['length'].values
+
+    if batch_df['length'].max() <= max_length:
+        return sequences, temperatures
+
+    expanded_sequences, expanded_tmps = [], []
+    for i, sequence in enumerate(sequences):
+        temperature = temperatures[i]
+        length = lengths[i]
+        if length > max_length:
+            chunks = int(np.ceil(len(sequence) / max_length))
+            for i in range(chunks):
+                a = i * max_length
+                b = (i + 1) * max_length
+                seq = sequence[a:b]
+                expanded_sequences.append(sequence)
+                expanded_tmps.append(temperature)
+        else:
+            expanded_sequences.append(sequence)
+            expanded_tmps.append(temperature)
+
+    return (
+        np.array(expanded_sequences, dtype=sequences.dtype),,
+        np.array(expanded_tmps, dtype=temperatures.dtype),
+    )
+
+
 class SequenceBase(tf.keras.utils.Sequence):
 
     def __init__(self, 
@@ -183,10 +213,7 @@ class SequenceBase(tf.keras.utils.Sequence):
 
         rowids, lengths = self.fetch_rowids_and_lengths()
 
-        group_bins = [
-            1, 500, 1000, 2000, 3000, 4000, 
-            5000, 1e4, 2e4, np.inf,
-        ]
+        group_bins = [1, 250, 500, 1000, 2000, 3000, 4000, 5000, np.inf]
         self.num_batches = int(np.ceil(len(rowids) / batch_size))
         self.rowid_groups = make_rowid_groups(rowids, lengths, group_bins)
         shuffle_rowid_groups(self.rowid_groups, self.rs)
@@ -225,13 +252,15 @@ class SequenceBase(tf.keras.utils.Sequence):
         batch_rowids = self.rowids[a:b]
         batch_df = load_batch_dataframe(self.engine, batch_rowids)
 
+        x_raw, batch_y = expand_inputs_when_exceeding_length(
+            batch_df,
+            self.max_sequence_length,
+        )
         batch_x = sequence_embedding(
-            batch_df['sequence'].values, 
+            x_raw, 
             self.alphabet, 
             dtype=self.dtype,
-            max_length=self.max_sequence_length,
         )
-        batch_y = batch_df['growth_tmp'].values
         batch_y_norm = normalize(
             batch_y, 
             self.mean,

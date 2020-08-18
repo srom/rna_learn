@@ -25,7 +25,6 @@ def sequence_embedding(
     alphabet, 
     ambiguous_chars=None, 
     dtype='float32',
-    max_length=None,
 ):
     """
     Args:
@@ -45,7 +44,6 @@ def sequence_embedding(
         x, 
         alphabet, 
         ambiguous_chars,
-        max_length,
     )
 
     return tf.keras.preprocessing.sequence.pad_sequences(
@@ -56,7 +54,7 @@ def sequence_embedding(
     )
 
 
-def one_hot_encode_sequences(x, alphabet, ambiguous_chars, max_length=None):
+def one_hot_encode_sequences(x, alphabet, ambiguous_chars):
     lookup = {
         ord(ambiguous_char): [1.] * len(alphabet) 
         for ambiguous_char in ambiguous_chars
@@ -72,9 +70,6 @@ def one_hot_encode_sequences(x, alphabet, ambiguous_chars, max_length=None):
         row = []
         for i, v in enumerate(x_i):
             row.append(lookup[ord(v)])
-
-            if max_length is not None and (i + 1) >= max_length:
-                break
 
         output.append(row)
 
