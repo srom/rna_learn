@@ -109,13 +109,13 @@ def assign_weight_to_batch_values(
 def load_batch_dataframe(engine, batch_rowids):
     batch_rowids_str = ','.join([str(r) for r in batch_rowids])
     query = f"""
-    select s.sequence, s.length, t.growth_tmp
+    select s.rowid, s.sequence, s.length, t.growth_tmp
     from sequences as s
     inner join species_traits as t
     on t.species_taxid = s.species_taxid
     where s.rowid in ({batch_rowids_str})
     """
-    return pd.read_sql(query, engine)
+    return pd.read_sql(query, engine).set_index('rowid')
 
 
 def make_rowid_groups(rowids, lengths, bins):
@@ -125,18 +125,22 @@ def make_rowid_groups(rowids, lengths, bins):
             i for i, length in enumerate(lengths)
             if length >= min_v and length < max_v
         ]
-        groups.append(rowids[group_ix])
+        if len(group_ix) > 0:
+            groups.append(rowids[group_ix])
 
     return groups
 
 
 def shuffle_rowid_groups(groups, rs):
     for i in range(len(groups)):
-        groups[i] = rs.choice(
-            groups[i], 
-            size=len(groups[i]), 
+        group = groups[i]
+        indices = list(range(len(group)))
+        ix = rs.choice(
+            indices, 
+            size=len(group), 
             replace=False,
         )
+        groups[i] = group[ix]
 
 
 def get_batched_rowids(groups, batch_size, rs):
@@ -162,37 +166,45 @@ def get_batched_rowids(groups, batch_size, rs):
 
     rowids += leftover_rowids
 
-    return np.array(rowids)
+    return np.array(rowids, dtype=groups[0].dtype)
 
 
-def expand_inputs_when_exceeding_length(batch_df, max_length):
-    sequences = batch_df['sequence'].values
-    temperatures = batch_df['growth_tmp'].values
-    lengths = batch_df['length'].values
-
-    if batch_df['length'].max() <= max_length:
-        return sequences, temperatures
-
-    expanded_sequences, expanded_tmps = [], []
-    for i, sequence in enumerate(sequences):
-        temperature = temperatures[i]
+def split_rowids_exceeding_length(rowids, lengths, max_length):
+    new_rowids, new_lengths = [], []
+    for i, rowid in enumerate(rowids):
         length = lengths[i]
-        if length > max_length:
-            chunks = int(np.ceil(len(sequence) / max_length))
-            for i in range(chunks):
-                a = i * max_length
-                b = (i + 1) * max_length
-                seq = sequence[a:b]
-                expanded_sequences.append(sequence)
-                expanded_tmps.append(temperature)
+        if length <= max_length:
+            new_rowids.append([rowid, 0])
+            new_lengths.append(length)
         else:
-            expanded_sequences.append(sequence)
-            expanded_tmps.append(temperature)
+            n_slices = int(np.ceil(length / max_length))
+            for s in range(n_slices):
+                ix = s * max_length
+                new_rowids.append([rowid, ix])
+
+                if (s + 1) == n_slices:
+                    new_length = length - (s * max_length)
+                else:
+                    new_length = max_length
+                
+                new_lengths.append(new_length)
 
     return (
-        np.array(expanded_sequences, dtype=sequences.dtype),
-        np.array(expanded_tmps, dtype=temperatures.dtype),
+        np.array(new_rowids, dtype=rowids.dtype), 
+        np.array(lengths, dtype=lengths.dtype),
     )
+
+
+def split_sequences(batch_df, batch_rowids, max_length, dtype):
+    x_raw, y = [], []
+    for rowid, ix in batch_rowids:
+        a = ix * max_length
+        b = (ix + 1) * max_length
+        row = batch_df.loc[rowid]
+        x_raw.append(row['sequence'][a:b])
+        y.append(row['growth_tmp'])
+
+    return x_raw, np.array(y, dtype=dtype)
 
 
 class SequenceBase(tf.keras.utils.Sequence):
@@ -208,13 +220,24 @@ class SequenceBase(tf.keras.utils.Sequence):
         dtype='float32', 
         random_seed=None,
     ):
+        self.batch_size = batch_size
+        self.alphabet = alphabet
+        self.dtype = dtype
         self.rs = np.random.RandomState(random_seed)
         self.engine = engine
 
         rowids, lengths = self.fetch_rowids_and_lengths()
 
+        if max_sequence_length is None:
+            max_sequence_length = np.max(lengths)
+
+        rowids, lengths = split_rowids_exceeding_length(
+            rowids, 
+            lengths, 
+            max_sequence_length,
+        )
+
         group_bins = [1, 250, 500, 1000, 2000, 3000, 4000, 5000, np.inf]
-        self.num_batches = int(np.ceil(len(rowids) / batch_size))
         self.rowid_groups = make_rowid_groups(rowids, lengths, group_bins)
         shuffle_rowid_groups(self.rowid_groups, self.rs)
         self.rowids = get_batched_rowids(
@@ -222,6 +245,7 @@ class SequenceBase(tf.keras.utils.Sequence):
             batch_size,
             self.rs,
         )
+        self.num_batches = int(np.ceil(len(self.rowids) / batch_size))
 
         if temperatures is None:
             temperatures, mean, std = load_growth_temperatures(engine)
@@ -236,11 +260,7 @@ class SequenceBase(tf.keras.utils.Sequence):
         self.bins = bins
         self.mean = mean
         self.std = std
-
-        self.batch_size = batch_size
-        self.alphabet = alphabet
         self.max_sequence_length = max_sequence_length
-        self.dtype = dtype
 
     def __len__(self):
         return self.num_batches
@@ -250,11 +270,15 @@ class SequenceBase(tf.keras.utils.Sequence):
         b = (batch_ix + 1) * self.batch_size
 
         batch_rowids = self.rowids[a:b]
-        batch_df = load_batch_dataframe(self.engine, batch_rowids)
 
-        x_raw, batch_y = expand_inputs_when_exceeding_length(
-            batch_df,
+        row_ids = batch_rowids[:, 0]
+        batch_df = load_batch_dataframe(self.engine, row_ids)
+
+        x_raw, batch_y = split_sequences(
+            batch_df, 
+            batch_rowids, 
             self.max_sequence_length,
+            self.dtype,
         )
         batch_x = sequence_embedding(
             x_raw, 
@@ -296,7 +320,7 @@ class TrainingSequence(SequenceBase):
 
     def fetch_rowids_and_lengths(self):
         return load_train_sequence_rowids(self.engine)
-            
+
 
 class TestingSequence(SequenceBase):
 
