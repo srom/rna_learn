@@ -49,7 +49,7 @@ def validate_model_for_species(
     max_queue_size=10,
     max_sequence_length=None,
 ):
-    temperature_range = np.arange(-15, 125, 0.5)
+    temperature_range = np.arange(-35, 145, 0.5)
     all_temperatures, mean, std = load_growth_temperatures(engine)
     data = []
     for species_taxid in species_taxids:
