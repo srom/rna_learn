@@ -144,7 +144,7 @@ def shuffle_rowid_groups(groups, rs):
         groups[i] = group[ix]
 
 
-def get_batched_rowids(groups, batch_size, rs):
+def get_batched_rowids(groups, batch_size, rs, shuffle=True):
     batched_rowids = []
     leftover_rowids = []
     for group in groups:
@@ -159,7 +159,11 @@ def get_batched_rowids(groups, batch_size, rs):
                 leftover_rowids += batch.tolist()
 
     ix = list(range(len(batched_rowids)))
-    batch_ids = rs.choice(ix, size=len(ix), replace=False)
+
+    if shuffle:
+        batch_ids = rs.choice(ix, size=len(ix), replace=False)
+    else:
+        batch_ids = ix
 
     rowids = []
     for i in batch_ids:
@@ -217,6 +221,7 @@ class SequenceBase(tf.keras.utils.Sequence):
         mean=None, 
         std=None,
         max_sequence_length=None,
+        shuffle=True,
         dtype='float32', 
         random_seed=None,
     ):
@@ -225,6 +230,7 @@ class SequenceBase(tf.keras.utils.Sequence):
         self.dtype = dtype
         self.rs = np.random.RandomState(random_seed)
         self.engine = engine
+        self.shuffle = shuffle
 
         rowids, lengths = self.fetch_rowids_and_lengths()
 
@@ -242,11 +248,13 @@ class SequenceBase(tf.keras.utils.Sequence):
             6000, 7000, 8000, 9000, 10000, np.inf,
         ]
         self.rowid_groups = make_rowid_groups(rowids, lengths, group_bins)
-        shuffle_rowid_groups(self.rowid_groups, self.rs)
+        if shuffle:
+            shuffle_rowid_groups(self.rowid_groups, self.rs)
         self.rowids = get_batched_rowids(
             self.rowid_groups, 
             batch_size,
             self.rs,
+            self.shuffle,
         )
         self.num_batches = int(np.ceil(len(self.rowids) / batch_size))
 
@@ -310,12 +318,13 @@ class SequenceBase(tf.keras.utils.Sequence):
         """
         Re-shuffle ahead of next epoch.
         """
-        shuffle_rowid_groups(self.rowid_groups, self.rs)
-        self.rowids = get_batched_rowids(
-            self.rowid_groups, 
-            self.batch_size,
-            self.rs,
-        )
+        if self.shuffle:
+            shuffle_rowid_groups(self.rowid_groups, self.rs)
+            self.rowids = get_batched_rowids(
+                self.rowid_groups, 
+                self.batch_size,
+                self.rs,
+            )
 
     def fetch_rowids_and_lengths(self):
         raise NotImplementedError()
@@ -347,7 +356,9 @@ class SpeciesSequence(SequenceBase):
         else:
             self.species_taxid = kwargs.pop('species_taxid')
 
+        kwargs['shuffle'] = False
+
         super().__init__(*args, **kwargs)
 
     def fetch_rowids_and_lengths(self):
-        return load_species_rowids(self.engine, self.species_taxid)    
+        return load_species_rowids(self.engine, self.species_taxid) 

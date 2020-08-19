@@ -57,7 +57,7 @@ class TestTrainingSequence(unittest.TestCase):
 
         tf_sequence.on_epoch_end()
 
-        self.assertNotEqual(first_rowid, tf_sequence.rowids[0][0])
+        self.assertEqual(first_rowid, tf_sequence.rowids[0][0])
 
         x_a, y_a, _ = tf_sequence[1]
         self.assertEqual(len(x_a), 10)
