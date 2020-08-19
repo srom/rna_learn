@@ -144,7 +144,7 @@ def shuffle_rowid_groups(groups, rs):
         groups[i] = group[ix]
 
 
-def get_batched_rowids(groups, batch_size, rs, shuffle=True):
+def get_batched_rowids(groups, batch_size, rs):
     batched_rowids = []
     leftover_rowids = []
     for group in groups:
@@ -159,11 +159,7 @@ def get_batched_rowids(groups, batch_size, rs, shuffle=True):
                 leftover_rowids += batch.tolist()
 
     ix = list(range(len(batched_rowids)))
-
-    if shuffle:
-        batch_ids = rs.choice(ix, size=len(ix), replace=False)
-    else:
-        batch_ids = ix
+    batch_ids = rs.choice(ix, size=len(ix), replace=False)
 
     rowids = []
     for i in batch_ids:
@@ -254,7 +250,6 @@ class SequenceBase(tf.keras.utils.Sequence):
             self.rowid_groups, 
             batch_size,
             self.rs,
-            self.shuffle,
         )
         self.num_batches = int(np.ceil(len(self.rowids) / batch_size))
 
