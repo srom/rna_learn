@@ -170,6 +170,6 @@ def _process_specie_inner(
     return [
         species_taxid,
         growth_tmp,
-        np.round(prediction, 1),
-        np.round(std, 1),
+        np.round(prediction, 2),
+        np.round(std, 2),
     ]
