@@ -29,6 +29,7 @@ from .utilities import (
     SaveModelCallback, 
     generate_random_run_id,
 )
+from .validation import validate_model_on_test_set
 
 
 DB_PATH = 'data/condensed_traits/db/seq.db'
@@ -79,8 +80,9 @@ def main():
     logger.info(f'Run {run_id}')
 
     output_folder = os.path.join(os.getcwd(), f'saved_models/{run_id}/')
-    model_path = os.path.join(output_folder, f'model.h5')
-    metadata_path = os.path.join(output_folder, f'metadata.json')
+    model_path = os.path.join(output_folder, 'model.h5')
+    metadata_path = os.path.join(output_folder, 'metadata.json')
+    validation_output_path = os.path.join(output_folder, 'validation.csv')
     log_dir = os.path.join(os.getcwd(), f'summary_log/{run_id}')
 
     try:
@@ -212,6 +214,17 @@ def main():
             ),
         ],
     )
+    logger.info('Training completed')
+
+    logger.info('Validating on test set')
+    validation_df = validate_model_on_test_set(
+        engine, 
+        model,
+        batch_size=batch_size,
+        max_queue_size=max_queue_size,
+        max_sequence_length=max_sequence_length,
+    )
+    validation_df.to_csv(validation_output_path)
 
     logger.info('DONE')
 
