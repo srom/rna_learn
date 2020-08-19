@@ -49,6 +49,7 @@ def main():
     parser.add_argument('--db_path', type=str, default=None)
     parser.add_argument('--verbose', type=int, default=1)
     parser.add_argument('--max_queue_size', type=int, default=10)
+    parser.add_argument('--max_sequence_length', type=int, default=int(1e4))
     parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
@@ -61,6 +62,7 @@ def main():
     db_path = args.db_path
     verbose = args.verbose
     max_queue_size = args.max_queue_size
+    max_sequence_length = args.max_sequence_length
     dtype = args.dtype
 
     if run_id is None and resume:
@@ -123,8 +125,6 @@ def main():
 
     logger.info('Loading data')
     tmps, mean, std = load_growth_temperatures(engine)
-    
-    max_sequence_length = int(1e4)
 
     training_sequence = TrainingSequence(
         engine, 

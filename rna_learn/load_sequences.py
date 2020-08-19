@@ -62,12 +62,12 @@ def compute_inverse_effective_sample(
     growth_temperatures, 
     batch_size,
     bins,
-    beta=0.99,
+    beta,
 ):
     """
     Class-balanced weighting based on inverse effective sample.
     Effective sample = (1 - beta^n) / (1 - beta)
-    Beta is an parameter; 0.99 is a good value in practice.
+    Typical values of beta are 0.9, 0.99 or 0.999.
     https://arxiv.org/abs/1901.05555
     """
     values, _ = np.histogram(growth_temperatures, bins)
@@ -82,7 +82,8 @@ def compute_inverse_effective_sample(
     # batch, the sum of weights will equal the batch size.
     # A widely different distribution of temperatures would
     # lead to a different factor.
-    factor = 0.341
+    # See notebook Sample weights.ipynb for calculation details.
+    factor = 2.58844
     alpha = factor * batch_size
     ###
     weights_sum = np.sum(inv_effective_weights)
@@ -237,20 +238,8 @@ class SequenceBase(tf.keras.utils.Sequence):
         )
 
         group_bins = [
-            1, 
-            250, 
-            500, 
-            1000, 
-            2000, 
-            3000, 
-            4000, 
-            5000, 
-            6000,
-            7000,
-            8000,
-            9000,
-            10000, 
-            np.inf,
+            1, 250, 500, 1000, 2000, 3000, 4000, 5000, 
+            6000, 7000, 8000, 9000, 10000, np.inf,
         ]
         self.rowid_groups = make_rowid_groups(rowids, lengths, group_bins)
         shuffle_rowid_groups(self.rowid_groups, self.rs)
@@ -264,11 +253,16 @@ class SequenceBase(tf.keras.utils.Sequence):
         if temperatures is None:
             temperatures, mean, std = load_growth_temperatures(engine)
 
-        bins = np.array([0, 20, 30, 40, 50, 60, 70, 80, 90, 105])
+        bins = np.array([
+            4,   10,  16,  19,  22,  25,  28,  31,  34,  37,  40,
+            43,  46,  49,  52,  55,  58,  61,  64,  67,  70,  73,  
+            76, 82,  85,  88,  91,  106,
+        ])
         bin_to_weights = compute_inverse_effective_sample(
             temperatures,
             batch_size,
             bins,
+            beta=0.999,
         )
         self.bin_to_weights = bin_to_weights
         self.bins = bins
