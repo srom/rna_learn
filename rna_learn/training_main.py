@@ -50,7 +50,7 @@ def main():
     parser.add_argument('--db_path', type=str, default=None)
     parser.add_argument('--verbose', type=int, default=1)
     parser.add_argument('--max_queue_size', type=int, default=10)
-    parser.add_argument('--max_sequence_length', type=int, default=int(1e4))
+    parser.add_argument('--max_sequence_length', type=int, default=5000)
     parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
@@ -122,11 +122,13 @@ def main():
             'l2_reg': l2_reg,
             'dropout': dropout_rate,
             'n_epochs': initial_epoch,
+            'max_sequence_length': max_sequence_length,
             'seed': seed,
         }
 
     logger.info('Loading data')
     tmps, mean, std = load_growth_temperatures(engine)
+    max_sequence_length = metadata['max_sequence_length']
 
     training_sequence = TrainingSequence(
         engine, 
