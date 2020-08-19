@@ -46,8 +46,8 @@ def validate_model_for_species(
     model, 
     species_taxids,
     batch_size,
-    max_sequence_length=None,
     max_queue_size=10,
+    max_sequence_length=None,
 ):
     temperature_range = np.arange(-15, 125, 0.5)
     all_temperatures, mean, std = load_growth_temperatures(engine)
@@ -62,8 +62,8 @@ def validate_model_for_species(
             all_temperatures,
             mean, 
             std,
-            max_sequence_length=None,
             max_queue_size=10,
+            max_sequence_length=None,
         )
         data.append(species_data)
 
@@ -86,8 +86,8 @@ def process_species(
     all_temperatures,
     mean,
     std,
-    max_sequence_length=None,
     max_queue_size=10,
+    max_sequence_length=None,
 ):
     seq = SpeciesSequence(
         engine, 
