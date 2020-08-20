@@ -19,26 +19,25 @@ IUPAC_AA_AMBIGUOUS_CHARS = (
     '-', '.',
 )
 
-ambiguous = np.array([1, 1, 1, 1], dtype='float32')
+any_nucleotide = np.array([1, 1, 1, 1], dtype='float32')
 DNA_MAPPING = {
     'A': np.array([1, 0, 0, 0], dtype='float32'),
     'C': np.array([0, 1, 0, 0], dtype='float32'),
     'G': np.array([0, 0, 1, 0], dtype='float32'),
     'T': np.array([0, 0, 0, 1], dtype='float32'),
-    '-': ambiguous, 
-    '.': ambiguous,
-    'R': ambiguous,
-    'Y': ambiguous,
-    'S': ambiguous,
-    'W': ambiguous,
-    'K': ambiguous,
-    'M': ambiguous,
-    'B': ambiguous,
-    'D': ambiguous,
-    'H': ambiguous,
-    'V': ambiguous,
-    'N': ambiguous,
-    'X': ambiguous,
+    'R': np.array([1, 0, 1, 0], dtype='float32'),
+    'Y': np.array([0, 1, 0, 1], dtype='float32'),
+    'S': np.array([0, 1, 1, 0], dtype='float32'),
+    'W': np.array([1, 0, 0, 1], dtype='float32'),
+    'K': np.array([0, 0, 1, 1], dtype='float32'),
+    'M': np.array([1, 1, 0, 0], dtype='float32'),
+    'B': np.array([0, 1, 1, 1], dtype='float32'),
+    'D': np.array([1, 0, 1, 1], dtype='float32'),
+    'H': np.array([1, 1, 0, 1], dtype='float32'),
+    'V': np.array([1, 1, 1, 0], dtype='float32'),
+    'N': any_nucleotide,
+    '-': any_nucleotide, 
+    '.': any_nucleotide,
 }
 
 
