@@ -84,10 +84,10 @@ def sequence_embedding_v2(x, alphabet, dtype='float32'):
         shape=(len(x), max_length, len(alphabet)),
         dtype=dtype,
     )
-    for i, seq in enumerate(x):
-        for j, letter in enumerate(seq):
-            letter_encoding = DNA_MAPPING[letter]
-            sequences[i, j] = letter_encoding
+    for i in range(len(x)):
+        seq = x[i]
+        for j in range(len(seq)):
+            sequences[i, j] = DNA_MAPPING[seq[j]]
 
     return sequences
 
