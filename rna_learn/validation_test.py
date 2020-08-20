@@ -55,5 +55,5 @@ class TestValidation(unittest.TestCase):
 
         self.assertEqual(species_tax_id, 14)
         self.assertEqual(actual, 74.15)
-        self.assertEqual(prediction, 37.87)
-        self.assertEqual(std, 6.0)
+        self.assertEqual(np.round(prediction, 1), 37.9)
+        self.assertEqual(np.round(std, 1), 6.0)

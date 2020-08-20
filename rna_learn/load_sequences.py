@@ -3,7 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .alphabet import ALPHABET_DNA
-from .transform import sequence_embedding, normalize
+from .transform import sequence_embedding_v2, normalize
 
 
 LOAD_ROWIDS_QUERY = """
@@ -101,10 +101,10 @@ def assign_weight_to_batch_values(
     dtype='float32',
 ):
     index = np.digitize(batch_temperatures, bins)
-    return np.array(
-        [weights_dict[bins[ix-1]] for ix in index],
-        dtype=dtype,
-    )
+    weights = np.zeros((len(index),),dtype=dtype)
+    for i, ix in enumerate(index):
+        weights[i] = weights_dict[bins[ix-1]]
+    return weights
 
 
 def load_batch_dataframe(engine, batch_rowids):
@@ -196,15 +196,16 @@ def split_rowids_exceeding_length(rowids, lengths, max_length):
 
 
 def get_inputs_from_batch(batch_df, batch_rowids, max_length, dtype):
-    x_raw, y = [], []
-    for rowid, ix in batch_rowids:
+    x_raw = []
+    y = np.zeros((len(batch_rowids),), dtype=dtype)
+    for i, (rowid, ix) in enumerate(batch_rowids):
         a = ix * max_length
         b = (ix + 1) * max_length
         row = batch_df.loc[rowid]
         x_raw.append(row['sequence'][a:b])
-        y.append(row['growth_tmp'])
+        y[i] = row['growth_tmp']
 
-    return x_raw, np.array(y, dtype=dtype)
+    return x_raw, y
 
 
 class SequenceBase(tf.keras.utils.Sequence):
@@ -231,7 +232,7 @@ class SequenceBase(tf.keras.utils.Sequence):
         rowids, lengths = self.fetch_rowids_and_lengths()
 
         if max_sequence_length is None:
-            max_sequence_length = np.max(lengths)
+            max_sequence_length = lengths.max()
 
         rowids, lengths = split_rowids_exceeding_length(
             rowids, 
@@ -291,7 +292,7 @@ class SequenceBase(tf.keras.utils.Sequence):
             self.max_sequence_length,
             self.dtype,
         )
-        batch_x = sequence_embedding(
+        batch_x = sequence_embedding_v2(
             x_raw, 
             self.alphabet, 
             dtype=self.dtype,
@@ -337,6 +338,7 @@ class TrainingSequence(SequenceBase):
 class TestingSequence(SequenceBase):
 
     def __init__(self, *args, **kwargs):
+        kwargs['shuffle'] = False
         super().__init__(*args, **kwargs)
 
     def fetch_rowids_and_lengths(self):
@@ -357,3 +359,39 @@ class SpeciesSequence(SequenceBase):
 
     def fetch_rowids_and_lengths(self):
         return load_species_rowids(self.engine, self.species_taxid) 
+
+
+def main():
+    """
+    Benchmarking stub
+    """
+    import os
+    from timeit import timeit
+    from sqlalchemy import create_engine
+
+    db_path = os.path.join(os.getcwd(), 'data/condensed_traits/db/seq.db')
+    engine = create_engine(f'sqlite+pysqlite:///{db_path}')
+
+    tf_sequence = SpeciesSequence(
+        engine, 
+        species_taxid=7,
+        batch_size=64, 
+        alphabet=ALPHABET_DNA, 
+        max_sequence_length=5000,
+        random_seed=444,
+    )
+    length = len(tf_sequence)
+
+    def timing_fn():
+        for i in range(length):
+            if (i + 1) % 10 == 0:
+                print(f'{i + 1} / {length}')
+            x, y, sample_weights = tf_sequence[i]
+
+        print()
+
+    print(timeit(timing_fn, number=10))
+
+
+if __name__ == '__main__':
+    main()

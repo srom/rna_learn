@@ -30,7 +30,10 @@ def validate_model_on_test_set(
     max_sequence_length=None,
 ):
     test_set_species_df = pd.read_sql(TEST_SET_QUERY, engine)
-    species_taxids = test_set_species_df['species_taxid'].values
+    species_taxids = [
+        int(s) 
+        for s in test_set_species_df['species_taxid'].values
+    ]
     return validate_model_for_species(
         engine, 
         model, 
@@ -62,8 +65,8 @@ def validate_model_for_species(
             all_temperatures,
             mean, 
             std,
-            max_queue_size=10,
-            max_sequence_length=None,
+            max_queue_size=max_queue_size,
+            max_sequence_length=max_sequence_length,
         )
         data.append(species_data)
 

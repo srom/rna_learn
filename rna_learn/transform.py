@@ -19,6 +19,28 @@ IUPAC_AA_AMBIGUOUS_CHARS = (
     '-', '.',
 )
 
+ambiguous = np.array([1, 1, 1, 1], dtype='float32')
+DNA_MAPPING = {
+    'A': np.array([1, 0, 0, 0], dtype='float32'),
+    'C': np.array([0, 1, 0, 0], dtype='float32'),
+    'G': np.array([0, 0, 1, 0], dtype='float32'),
+    'T': np.array([0, 0, 0, 1], dtype='float32'),
+    '-': ambiguous, 
+    '.': ambiguous,
+    'R': ambiguous,
+    'Y': ambiguous,
+    'S': ambiguous,
+    'W': ambiguous,
+    'K': ambiguous,
+    'M': ambiguous,
+    'B': ambiguous,
+    'D': ambiguous,
+    'H': ambiguous,
+    'V': ambiguous,
+    'N': ambiguous,
+    'X': ambiguous,
+}
+
 
 def sequence_embedding(
     x, 
@@ -52,6 +74,23 @@ def sequence_embedding(
         padding='post', 
         value=mask_value,
     )
+
+
+def sequence_embedding_v2(x, alphabet, dtype='float32'):
+    if len(alphabet) != 4:
+        return sequence_embedding(x, alphabet, dtype)
+
+    max_length = max((len(s) for s in x))
+    sequences = np.zeros(
+        shape=(len(x), max_length, len(alphabet)),
+        dtype=dtype,
+    )
+    for i, seq in enumerate(x):
+        for j, letter in enumerate(seq):
+            letter_encoding = DNA_MAPPING[letter]
+            sequences[i, j] = letter_encoding
+
+    return sequences
 
 
 def one_hot_encode_sequences(x, alphabet, ambiguous_chars):
