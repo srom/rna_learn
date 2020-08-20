@@ -1,3 +1,5 @@
+import logging
+
 import scipy
 import numpy as np
 import pandas as pd
@@ -20,6 +22,8 @@ GROWTH_TMP_QUERY = """
 select growth_tmp from species_traits
 where species_taxid = ?
 """
+
+logger = logging.getLogger(__name__)
 
 
 def validate_model_on_test_set(
@@ -52,10 +56,12 @@ def validate_model_for_species(
     max_queue_size=10,
     max_sequence_length=None,
 ):
+    data = []
+    n_species = len(species_taxids)
     temperature_range = np.arange(-35, 145, 0.5)
     all_temperatures, mean, std = load_growth_temperatures(engine)
-    data = []
-    for species_taxid in species_taxids:
+    for i, species_taxid in enumerate(species_taxids):
+        logger.info(f'Validating specie {species_taxid} ({i+1:,} / {n_species:,})')
         species_data = process_species(
             engine, 
             model, 
@@ -176,3 +182,43 @@ def _process_specie_inner(
         np.round(prediction, 2),
         np.round(std, 2),
     ]
+
+
+def main():
+    import os
+    from sqlalchemy import create_engine
+    from .model import (
+        conv1d_densenet_regression_model,
+        compile_regression_model,
+    )
+
+    db_path = os.path.join(
+        os.getcwd(), 
+        'data/condensed_traits/db/seq.db',
+    )
+    engine = create_engine(f'sqlite+pysqlite:///{db_path}')
+
+    tf.random.set_seed(444)
+
+    alphabet = ALPHABET_DNA
+    model = conv1d_densenet_regression_model(
+        alphabet_size=len(alphabet),
+        growth_rate=5,
+        n_layers=2,
+        kernel_sizes=[3, 2],
+        masking=True,
+    )
+    compile_regression_model(model, learning_rate=1e-4)
+
+    output_df = validate_model_for_species(
+        engine, 
+        model, 
+        species_taxids=[7, 14],
+        batch_size=64,
+        max_sequence_length=5000,
+        max_queue_size=20,
+    )
+
+
+if __name__ == '__main__':
+    main()
