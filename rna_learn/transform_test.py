@@ -2,6 +2,7 @@ import unittest
 
 from .transform import (
     sequence_embedding, 
+    sequence_embedding_v2,
     combine_sequences, 
     randomly_swap_redundant_codon,
 )
@@ -54,7 +55,7 @@ class TestTransform(unittest.TestCase):
             [0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
         ], seq_oh[0].tolist())
 
-        seq_oh = sequence_embedding(['GA-GTC'], alphabet_dna)
+        seq_oh = sequence_embedding_v2(['GA-GTC'], alphabet_dna)
 
         self.assertEqual((1, 6, 4), seq_oh.shape)
 
