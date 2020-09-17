@@ -110,7 +110,7 @@ def assign_weight_to_batch_values(
 def load_batch_dataframe(engine, batch_rowids):
     batch_rowids_str = ','.join([str(r) for r in batch_rowids])
     query = f"""
-    select s.rowid, s.sequence, s.length, t.growth_tmp
+    select s.rowid, s.sequence, s.length, s.sequence_type, t.growth_tmp
     from sequences as s
     inner join species_traits as t
     on t.species_taxid = s.species_taxid

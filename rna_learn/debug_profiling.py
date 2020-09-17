@@ -1,11 +1,11 @@
 import os
+import json
+import timeit
 
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 from sqlalchemy import create_engine
-
-if os.getcwd().endswith('notebook'):
-    os.chdir('..')
 
 from rna_learn.alphabet import ALPHABET_DNA
 from rna_learn.load_sequences import (
@@ -18,25 +18,60 @@ from rna_learn.model import conv1d_densenet_regression_model, compile_regression
 
 
 def main():
+    run_id = 'run_yb64o'
+    model_path = os.path.join(os.getcwd(), f'saved_models/{run_id}/model.h5')
+    metadata_path = os.path.join(os.getcwd(), f'saved_models/{run_id}/metadata.json')
+
     db_path = os.path.join(os.getcwd(), 'data/condensed_traits/db/seq.db')
     engine = create_engine(f'sqlite+pysqlite:///{db_path}')
 
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
     temperatures, mean, std = load_growth_temperatures(engine)
 
+    model = conv1d_densenet_regression_model(
+        alphabet_size=len(metadata['alphabet']), 
+        growth_rate=metadata['growth_rate'],
+        n_layers=metadata['n_layers'],
+        kernel_sizes=metadata['kernel_sizes'],
+        dilation_rates=metadata['dilation_rates'],
+        l2_reg=metadata['l2_reg'],
+        dropout=metadata['dropout'],
+    )
+    model.load_weights(model_path)
+
+    species_taxid = 167
+    max_sequence_length = 9999
     species_seq = SpeciesSequence(
         engine, 
-        species_taxid=7,
+        species_taxid=species_taxid,
         batch_size=64, 
         temperatures=temperatures,
         mean=mean,
         std=std,
         alphabet=ALPHABET_DNA, 
-        max_sequence_length=5000,
-        random_seed=444,
+        max_sequence_length=max_sequence_length,
+        random_seed=metadata['seed'],
     )
 
-    for i in range(len(species_seq)):
-        x_batch, y_norm, sample_weights = species_seq[i]
+    print('fast:', timeit.timeit(lambda: evaluate_seq_fast(model, species_seq), number=1))
+    print('slow:', timeit.timeit(lambda: evaluate_seq(model, species_seq), number=1))
+
+
+def evaluate_seq(model, species_seq):
+    iterator = species_seq.__iter__()
+    for _ in range(len(species_seq)):
+        batch_x, _, _ = next(iterator)
+        _ = model(batch_x)
+
+
+@tf.function(experimental_relax_shapes=True)
+def evaluate_seq_fast(model, species_seq):
+    iterator = species_seq.__iter__()
+    for _ in tf.range(len(species_seq)):
+        batch_x, _, _ = next(iterator)
+        _ = model(batch_x)
 
 
 if __name__ == '__main__':
