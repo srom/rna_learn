@@ -56,6 +56,7 @@ def main():
     )
 
     print('fast:', timeit.timeit(lambda: evaluate_seq_fast(model, species_seq), number=1))
+    print('fast 2:', timeit.timeit(lambda: evaluate_seq_fast_2(model, species_seq), number=1))
     print('slow:', timeit.timeit(lambda: evaluate_seq(model, species_seq), number=1))
 
 
@@ -72,6 +73,19 @@ def evaluate_seq_fast(model, species_seq):
     for _ in tf.range(len(species_seq)):
         batch_x, _, _ = next(iterator)
         _ = model(batch_x)
+
+
+def evaluate_seq_fast_2(model, species_seq):
+
+    def evaluate_batch(batch_x):
+        model(batch_x)
+
+    fn = tf.function(evaluate_batch, experimental_relax_shapes=True)
+
+    iterator = species_seq.__iter__()
+    for _ in range(len(species_seq)):
+        batch_x, _, _ = next(iterator)
+        fn(batch_x)
 
 
 if __name__ == '__main__':

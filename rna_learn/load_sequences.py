@@ -210,7 +210,8 @@ def get_inputs_from_batch(batch_df, batch_rowids, max_length, dtype):
 
 class SequenceBase(tf.keras.utils.Sequence):
 
-    def __init__(self, 
+    def __init__(
+        self, 
         engine,
         batch_size, 
         alphabet, 
