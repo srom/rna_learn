@@ -34,38 +34,68 @@ gradients along the straight line in R^n from the baseline to the input.
 
 See paper for more details.
 """
-import numpy as np
 import tensorflow as tf
 
 
 def integrated_gradients_for_binary_features(
+    model,
     inputs, 
     baseline,
     target,
-    gradient_fn,
 ):
     """
     Adapted from the original implementation to accomodate binary features.
     """
-    inp = np.vstack((baseline[np.newaxis,:], inputs))
-    grads = gradient_fn(inp, target)
+    inputs_tf = tf.concat((
+        tf.convert_to_tensor(baseline, dtype='float32')[tf.newaxis,:], 
+        tf.convert_to_tensor(inputs, dtype='float32'),
+    ), axis=0)
+    target_tf = tf.convert_to_tensor(target, dtype='float32')
+
+    with tf.GradientTape() as t:
+        t.watch(inputs_tf)
+        y_log_prob = model(inputs_tf).log_prob(target_tf)
+        
+    grads = t.gradient(y_log_prob, inputs_tf)
 
     baseline_gradient = grads[0]
     input_gradients = grads[1:]
 
-    int_grads = inputs * (input_gradients - baseline_gradient)
+    int_grads = inputs * (input_gradients + baseline_gradient) / 2
 
-    return np.sum(int_grads, axis=2)
+    return tf.reduce_sum(int_grads, axis=2)
 
 
-def make_gradient_fn(model):
+def integrated_gradients_for_binary_features_2(
+    model,
+    inputs, 
+    baseline,
+    target,
+):
+    """
+    Adapted from the original implementation to accomodate binary features.
+    """
+    inputs_tf = tf.concat((
+        tf.convert_to_tensor(baseline, dtype='float32')[tf.newaxis,:], 
+        tf.convert_to_tensor(inputs, dtype='float32'),
+    ), axis=0)
+    target_tf = tf.convert_to_tensor(target, dtype='float32')
 
-    def gradient_fn(inputs, target):
-        with tf.GradientTape() as t:
-            inputs_tf = tf.convert_to_tensor(inputs, dtype='float32')
-            t.watch(inputs_tf)
-            y_log_prob = model(inputs_tf).log_prob(target)
-            
-        return t.gradient(y_log_prob, inputs_tf).numpy()
+    with tf.GradientTape() as t:
+        t.watch(inputs_tf)
+        y_log_prob = model(inputs_tf).log_prob(target_tf)
+        
+    grads = t.gradient(y_log_prob, inputs_tf)
 
-    return gradient_fn
+    baseline_gradient = grads[0]
+    input_gradients = grads[1:]
+
+    int_grads_baseline = inputs * (input_gradients - baseline_gradient)
+    int_grads_baseline_mean =  inputs * (input_gradients + baseline_gradient) / 2
+    int_grads_no_baseline = inputs * input_gradients
+
+    return (
+        tf.reduce_sum(int_grads_baseline, axis=2),
+        tf.reduce_sum(int_grads_baseline_mean, axis=2),
+        tf.reduce_sum(int_grads_no_baseline, axis=2),
+    )

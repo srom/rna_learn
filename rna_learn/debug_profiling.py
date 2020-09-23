@@ -14,7 +14,10 @@ from rna_learn.load_sequences import (
     assign_weight_to_batch_values,
     SpeciesSequence,
 )
-from rna_learn.model import conv1d_densenet_regression_model, compile_regression_model
+from rna_learn.model import (
+    conv1d_densenet_regression_model, 
+    compile_regression_model,
+)
 
 
 def main():
@@ -56,7 +59,7 @@ def main():
     )
 
     print('fast:', timeit.timeit(lambda: evaluate_seq_fast(model, species_seq), number=1))
-    print('fast 2:', timeit.timeit(lambda: evaluate_seq_fast_2(model, species_seq), number=1))
+    print('semi-fast:', timeit.timeit(lambda: evaluate_seq_semi_fast(model, species_seq), number=1))
     print('slow:', timeit.timeit(lambda: evaluate_seq(model, species_seq), number=1))
 
 
@@ -75,7 +78,7 @@ def evaluate_seq_fast(model, species_seq):
         _ = model(batch_x)
 
 
-def evaluate_seq_fast_2(model, species_seq):
+def evaluate_seq_semi_fast(model, species_seq):
 
     def evaluate_batch(batch_x):
         model(batch_x)

@@ -50,7 +50,7 @@ def main():
     parser.add_argument('--db_path', type=str, default=None)
     parser.add_argument('--verbose', type=int, default=1)
     parser.add_argument('--max_queue_size', type=int, default=10)
-    parser.add_argument('--max_sequence_length', type=int, default=5000)
+    parser.add_argument('--max_sequence_length', type=int, default=5001)
     parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
@@ -208,6 +208,7 @@ def main():
                 write_graph=False,
                 update_freq=1000,
                 embeddings_freq=0,
+                profile_batch=(2, 100),
             ),
             SaveModelCallback(
                 model_path=model_path,

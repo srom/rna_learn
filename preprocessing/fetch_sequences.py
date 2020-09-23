@@ -114,7 +114,7 @@ def worker_main(job_id, species_taxid, input_csv, output_folder):
     logger.info(f'Process {job_id}: DONE')
 
 
-def fetch_sequences(metadata, output_folder):
+def fetch_sequences(metadata, output_folder, sleep_time=0.4):
     specie_taxid = metadata['species_taxid']
     download_url_base = metadata['download_url_base']
 
@@ -152,16 +152,16 @@ def fetch_sequences(metadata, output_folder):
 
         start_time_s = time.time()
 
-        download_file_with_error_handling(ftp_url, save_path)
+        download_file_with_error_handling(ftp_url, save_path, sleep_time=sleep_time)
 
         elapsed_s = time.time() - start_time_s
 
         # Don't fire requests too often
-        if elapsed_s < 0.4:
-            time.sleep(0.4 - elapsed_s)
+        if elapsed_s < sleep_time:
+            time.sleep(sleep_time - elapsed_s)
 
 
-def download_file_with_error_handling(ftp_url, save_path, max_tries=5):
+def download_file_with_error_handling(ftp_url, save_path, max_tries=5, sleep_time=0.4):
     try_number = 0
     while True:
         try_number += 1
@@ -179,7 +179,10 @@ def download_file_with_error_handling(ftp_url, save_path, max_tries=5):
 
             # NCBI FTP server returns a meaningful message when content does not exist.
             # In this case we simply move on.
-            if isinstance(error_message, str) and 'No such file or directory' in error_message:
+            if (
+                isinstance(error_message, str) and 
+                'No such file or directory' in error_message
+            ):
                 return
 
         if try_number >= max_tries:
@@ -192,7 +195,7 @@ def download_file_with_error_handling(ftp_url, save_path, max_tries=5):
             # Sleep for longer as consecutive errors creep in.
             # This is so we can recover from cases where NCBI notifies
             # us that too many requests have been fired.
-            sleep_time_seconds = try_number * 0.4
+            sleep_time_seconds = try_number * sleep_time
             time.sleep(sleep_time_seconds)
             continue
 

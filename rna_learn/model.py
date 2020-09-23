@@ -164,7 +164,7 @@ def conv1d_densenet_regression_model(
     dilation_rates=None,
     l2_reg=1e-4,
     dropout=0.5,
-    masking=False,
+    masking=True,
 ):
     if len(kernel_sizes) != n_layers:
         raise ValueError('Kernel sizes argument must specify one kernel size per layer')
