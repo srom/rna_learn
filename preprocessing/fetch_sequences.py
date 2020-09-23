@@ -1,11 +1,3 @@
-#############################################################
-## Project: mRNA thermal adaptation
-## Script purpose: Assemble a large database of procaryotic
-## sequences by fetching data from NCBI's ftp server.
-## Date: July 2020
-## Author: Romain Strock
-#############################################################
-
 import argparse
 import os
 import logging
