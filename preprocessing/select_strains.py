@@ -105,7 +105,7 @@ def select_incomplete_assemblies_for_less_common_ogt(
     species_traits_df,
     seen_assemblies,
     low=20,
-    high=45,
+    high=40,
 ):
     candidate_taxids = species_traits_df[
         (species_traits_df['growth_tmp'].notnull())
