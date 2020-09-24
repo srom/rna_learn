@@ -18,8 +18,8 @@ from .sequence_utils import (
 )
 
 
-DB_PATH = 'data/condensed_traits/db/seq.db'
-SEQUENCES_BASE_FOLDER = 'data/condensed_traits/sequences'
+DB_PATH = 'data/db/seq.db'
+SEQUENCES_BASE_FOLDER = 'data/sequences'
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +44,22 @@ def main():
 
     cds_path_fmt = os.path.join(sequences_base_folder, '{0}/{0}_cds_from_genomic.fna.gz')
 
-    species_taxid_query = 'select species_taxid from species_source'
-    species_taxids = pd.read_sql(species_taxid_query, engine)['species_taxid'].values.tolist()
+    assembly_accession_query = 'select assembly_accession, species_taxid from assembly_source'
+    source_df = pd.read_sql(assembly_accession_query, engine)
 
-    logger.info(f'Importing CDS for {len(species_taxids):,} species')
+    logger.info(f'Importing CDS for {len(source_df):,} strains')
 
     n_imported, n_seen_cds = 0, 0
-    for i, species_taxid in enumerate(species_taxids):
+    for i, tpl in enumerate(source_df.itertuples()):
         if i == 0 or (i + 1) % 100 == 0:
             r = 100 * n_imported / n_seen_cds if n_seen_cds > 0 else 100
-            logger.info(f'Specie {i+1:,} / {len(species_taxids):,} | {r:.1f}% success rate')
+            logger.info(f'Strain {i+1:,} / {len(source_df):,} | {r:.1f}% success rate')
+
+        assembly_accession = tpl.assembly_accession
+        species_taxid = tpl.species_taxid
 
         sequence_records_to_import = []
-        cds_fasta_path = cds_path_fmt.format(species_taxid)
+        cds_fasta_path = cds_path_fmt.format(assembly_accession)
 
         with gzip.open(cds_fasta_path, mode='rt') as f:
             cds_dict = SeqIO.to_dict(SeqIO.parse(f, "fasta"))
@@ -71,16 +74,16 @@ def main():
                 n_imported += 1
                 sequence_records_to_import.append(sequence_record)
 
-        import_sequences(engine, species_taxid, sequence_records_to_import)
+        import_sequences(engine, assembly_accession, species_taxid, sequence_records_to_import)
 
     success_rate = 100 * n_imported / n_seen_cds
     logger.info(f'{n_imported:,} sequences imported | {success_rate:.1f}% success rate')
     logger.info('DONE')
 
 
-def import_sequences(engine, species_taxid, sequence_records):
+def import_sequences(engine, assembly_accession, species_taxid, sequence_records):
     columns = [
-        'sequence_id', 'species_taxid', 'sequence_type', 
+        'assembly_accession', 'species_taxid', 'sequence_type', 
         'chromosome_id', 'location_json', 'strand', 'length', 
         'description', 'metadata_json', 'sequence',
     ]
@@ -101,11 +104,11 @@ def import_sequences(engine, species_taxid, sequence_records):
             location_list, strand = parse_location(sequence_record)
             location_json = json.dumps(location_list, sort_keys=True)
         except InvalidLocationError as e:
-            logger.warning(f'{species_taxid} | Invalid location information: {e.message}')
+            logger.warning(f'{assembly_accession} | Invalid location information: {e.message}')
             continue
 
         row = [
-            seq_id,
+            assembly_accession,
             species_taxid,
             sequence_type,
             chromosome_id,

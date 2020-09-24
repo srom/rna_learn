@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-DB_FOLDER="$(PWD)/data/condensed_traits/db"
+DB_FOLDER="$(PWD)/data/db"
 DB_PATH="${DB_FOLDER}/seq.db"
 
 if test -f "${DB_PATH}"; then

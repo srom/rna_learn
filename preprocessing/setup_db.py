@@ -19,10 +19,10 @@ from sqlalchemy import (
 )
 
 
-DB_PATH = 'data/condensed_traits/db/seq.db'
-NCBI_SPECIES_PATH = 'data/condensed_traits/ncbi_species_final.csv'
+DB_PATH = 'data/db/seq.db'
+NCBI_SPECIES_PATH = 'data/NCBI_assemblies_final.csv'
 SPECIES_TRAITS_PATH = 'data/condensed_traits/condensed_species_NCBI_with_ogt.csv'
-TRNA_REFERENCE_FOLDER = 'data/condensed_traits/tRNADB-CE'
+TRNA_REFERENCE_FOLDER = 'data/tRNADB-CE'
 TRAIN_TEST_SPLIT_SEED = 444
 TEST_RATIO = 0.2
 
@@ -60,7 +60,7 @@ def main():
 
     engine = create_engine(f'sqlite+pysqlite:///{db_path}')
 
-    create_species_source_table(engine, ncbi_species_path)
+    create_assembly_source_table(engine, ncbi_species_path)
     create_species_traits_table(engine, species_traits_path)
     create_trna_reference_table(engine, trna_reference_folder)
     create_sequences_table(engine)
@@ -71,8 +71,8 @@ def main():
     )
 
 
-def create_species_source_table(engine, ncbi_species_path):
-    table_name = 'species_source'
+def create_assembly_source_table(engine, ncbi_species_path):
+    table_name = 'assembly_source'
 
     if engine.dialect.has_table(engine, table_name):
         logger.info(f'Table {table_name} already exists, skipping')
@@ -81,12 +81,12 @@ def create_species_source_table(engine, ncbi_species_path):
         logger.info(f'Creating table {table_name}')
 
     metadata = MetaData()
-    species_source = Table(
+    assembly_source = Table(
         table_name, 
         metadata,
-        Column('species_taxid', Integer, primary_key=True),
+        Column('assembly_accession', String, primary_key=True),
+        Column('species_taxid', Integer, nullable=False),
         Column('taxid', Integer, nullable=False),
-        Column('assembly_accession', String, nullable=False),
         Column('bioproject', String, nullable=False),
         Column('refseq_category', String, nullable=False),
         Column('organism_name', String, nullable=False),
@@ -102,11 +102,12 @@ def create_species_source_table(engine, ncbi_species_path):
         Column('paired_asm_comp', String, nullable=False),
         Column('relation_to_type_material', String, nullable=True),
         Column('download_url_base', String, nullable=False),
+        Index('idx_source_species_taxid', 'species_taxid'),
     )
     metadata.create_all(engine)
 
     columns = [
-        'species_taxid', 'taxid', 'assembly_accession', 'bioproject',
+        'assembly_accession', 'species_taxid', 'taxid', 'bioproject',
         'refseq_category', 'organism_name', 'infraspecific_name',
         'version_status', 'assembly_level', 'release_type', 'genome_rep',
         'seq_rel_date', 'asm_name', 'submitter', 'gbrs_paired_asm',
@@ -139,7 +140,7 @@ def create_species_traits_table(engine, species_traits_path):
     species_traits_all['species_taxid'] = species_traits_all['species_tax_id']
 
     species_taxid_short_list = pd.read_sql(
-        'select species_taxid from species_source', 
+        'select species_taxid from assembly_source', 
         engine,
     )['species_taxid'].values
 
@@ -285,7 +286,7 @@ def create_sequences_table(engine):
     sequences_table = Table(
         table_name, 
         metadata,
-        Column('sequence_id', String, nullable=False),
+        Column('assembly_accession', String, nullable=False),
         Column('species_taxid', Integer, nullable=False),
         Column('sequence_type', String, nullable=False),
         Column('chromosome_id', String, nullable=False),
@@ -296,6 +297,7 @@ def create_sequences_table(engine):
         Column('metadata_json', String, nullable=True),
         Column('sequence', String, nullable=False),
         Index('idx_seq_species_taxid', 'species_taxid'),
+        Index('idx_seq_assembly_accession', 'assembly_accession'),
     )
     sequences_table.create(engine)
 
@@ -312,7 +314,7 @@ def create_train_test_split_table(engine, seed, test_ratio):
     rs = np.random.RandomState(seed)
 
     species_taxids = species_taxids = pd.read_sql(
-        'select species_taxid from species_source', 
+        'select species_taxid from assembly_source', 
         engine
     )['species_taxid'].values
 

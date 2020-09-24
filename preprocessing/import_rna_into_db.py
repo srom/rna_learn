@@ -20,8 +20,8 @@ from .sequence_utils import (
 )
 
 
-DB_PATH = 'data/condensed_traits/db/seq.db'
-SEQUENCES_BASE_FOLDER = 'data/condensed_traits/sequences'
+DB_PATH = 'data/db/seq.db'
+SEQUENCES_BASE_FOLDER = 'data/sequences'
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +46,17 @@ def main():
 
     rna_path_fmt = os.path.join(sequences_base_folder, '{0}/{0}_rna_from_genomic.fna.gz')
 
-    species_taxid_query = 'select species_taxid from species_traits'
-    species_taxids = pd.read_sql(species_taxid_query, engine)['species_taxid'].values.tolist()
+    assembly_accession_query = 'select assembly_accession, species_taxid from assembly_source'
+    source_df = pd.read_sql(assembly_accession_query, engine)
 
-    logger.info(f'Importing RNA for {len(species_taxids):,} species')
+    logger.info(f'Importing RNA for {len(source_df):,} strains')
 
-    for i, species_taxid in enumerate(species_taxids):
+    for i, tpl in enumerate(source_df.itertuples()):
         if i == 0 or (i + 1) % 10 == 0:
-            logger.info(f'Specie {i+1:,} / {len(species_taxids):,}')
+            logger.info(f'Strain {i+1:,} / {len(source_df):,}')
+
+        assembly_accession = tpl.assembly_accession
+        species_taxid = tpl.species_taxid
 
         species_data_q = (
             'select species, phylum, superkingdom from species_traits '
@@ -87,20 +90,20 @@ def main():
                 for tpl in pd.read_sql(q, engine).itertuples()
             }
         else:
-            raise ValueError(f'Unknown superkingdom {superkingdom} for specie {species_taxid}')
+            raise ValueError(f'Unknown superkingdom {superkingdom} for strain {assembly_accession}')
 
         sequence_records_to_import = []
-        rna_fasta_path = rna_path_fmt.format(species_taxid)
+        rna_fasta_path = rna_path_fmt.format(assembly_accession)
 
         with gzip.open(rna_fasta_path, mode='rt') as f:
             rna_records = list(SeqIO.parse(f, "fasta"))
 
-        import_sequences(engine, species_taxid, rna_records, superkingdom, known_trnas)
+        import_sequences(engine, assembly_accession, species_taxid, rna_records, superkingdom, known_trnas)
 
 
-def import_sequences(engine, species_taxid, sequence_records, superkingdom, known_trnas):
+def import_sequences(engine, assembly_accession, species_taxid, sequence_records, superkingdom, known_trnas):
     columns = [
-        'sequence_id', 'species_taxid', 'sequence_type', 
+        'assembly_accession', 'species_taxid', 'sequence_type', 
         'chromosome_id', 'location_json', 'strand', 'length', 
         'description', 'metadata_json', 'sequence',
     ]
@@ -115,13 +118,13 @@ def import_sequences(engine, species_taxid, sequence_records, superkingdom, know
             location_list, strand = parse_location(sequence_record)
             location_json = json.dumps(location_list, sort_keys=True)
         except InvalidLocationError as e:
-            logger.warning(f'{species_taxid} | Invalid location information: {e.message}')
+            logger.warning(f'{assembly_accession} | Invalid location information: {e.message}')
             continue
 
         try:
             sequence_type = parse_sequence_type(sequence_record)
         except InvalidSequenceTypeError as e:
-            logger.warning(f'{species_taxid} | Invalid sequence type information: {e.message}')
+            logger.warning(f'{assembly_accession} | Invalid sequence type information: {e.message}')
             continue
 
         # A handful of species have sequences marked as mRNA.
@@ -151,7 +154,7 @@ def import_sequences(engine, species_taxid, sequence_records, superkingdom, know
                 pass
 
         row = [
-            seq_id,
+            assembly_accession,
             species_taxid,
             sequence_type,
             chromosome_id,
