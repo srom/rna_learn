@@ -19,6 +19,11 @@ select rowid, length from sequences
 where species_taxid = ?
 """
 
+LOAD_ROWIDS_PER_ASSEMBLY_QUERY = """
+select rowid, length from sequences
+where assembly_accession = ?
+"""
+
 
 def load_train_sequence_rowids(engine):
     df = pd.read_sql(LOAD_ROWIDS_QUERY, engine, params=(0,))
@@ -35,6 +40,15 @@ def load_species_rowids(engine, species_taxid):
         LOAD_ROWIDS_PER_SPECIES_QUERY, 
         engine, 
         params=(species_taxid,),
+    )
+    return df['rowid'].values, df['length'].values
+
+
+def load_assembly_rowids(engine, assembly_accession):
+    df = pd.read_sql(
+        LOAD_ROWIDS_PER_ASSEMBLY_QUERY, 
+        engine, 
+        params=(assembly_accession,),
     )
     return df['rowid'].values, df['length'].values
 
@@ -83,7 +97,7 @@ def compute_inverse_effective_sample(
     # A widely different distribution of temperatures would
     # lead to a different factor.
     # See notebook Sample weights.ipynb for calculation details.
-    factor = 2.58844
+    factor = 0.9425
     alpha = factor * batch_size
     ###
     weights_sum = np.sum(inv_effective_weights)
@@ -359,7 +373,23 @@ class SpeciesSequence(SequenceBase):
         super().__init__(*args, **kwargs)
 
     def fetch_rowids_and_lengths(self):
-        return load_species_rowids(self.engine, self.species_taxid) 
+        return load_species_rowids(self.engine, self.species_taxid)
+
+
+class AssemblySequence(SequenceBase):
+
+    def __init__(self, *args, **kwargs):
+        if 'assembly_accession' not in kwargs:
+            raise ValueError('Assembly accession not specified')
+        else:
+            self.assembly_accession = kwargs.pop('assembly_accession')
+
+        kwargs['shuffle'] = False
+
+        super().__init__(*args, **kwargs)
+
+    def fetch_rowids_and_lengths(self):
+        return load_assembly_rowids(self.engine, self.assembly_accession)
 
 
 def main():

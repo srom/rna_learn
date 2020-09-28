@@ -12,8 +12,6 @@ from sqlalchemy import create_engine
 
 from .alphabet import ALPHABET_DNA
 from .model import (
-    variational_conv1d_densenet,
-    compile_variational_model,
     conv1d_densenet_regression_model,
     compile_regression_model,
     DenormalizedMAE,
@@ -32,7 +30,7 @@ from .utilities import (
 from .validation import validate_model_on_test_set
 
 
-DB_PATH = 'data/condensed_traits/db/seq.db'
+DB_PATH = 'data/db/seq.db'
 
 logger = logging.getLogger(__name__)
 
@@ -43,20 +41,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_id', type=str, default=None)
     parser.add_argument('--resume', action='store_true')
-    parser.add_argument('--variational', action='store_true')
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--n_epochs', type=int, default=10)
     parser.add_argument('--db_path', type=str, default=None)
     parser.add_argument('--verbose', type=int, default=1)
-    parser.add_argument('--max_queue_size', type=int, default=10)
+    parser.add_argument('--max_queue_size', type=int, default=50)
     parser.add_argument('--max_sequence_length', type=int, default=5001)
     parser.add_argument('--dtype', type=str, default='float32')
     args = parser.parse_args()
 
     run_id = args.run_id
     resume = args.resume
-    variational = args.variational
     learning_rate = args.learning_rate
     batch_size = args.batch_size
     n_epochs = args.n_epochs
@@ -153,35 +149,18 @@ def main():
         random_seed=metadata['seed'],
     )
 
-    if variational:
-        _, _, _, model = variational_conv1d_densenet(
-            encoding_size=metadata['encoding_size'],
-            alphabet_size=len(metadata['alphabet']),
-            growth_rate=metadata['growth_rate'],
-            n_layers=metadata['n_layers'],
-            kernel_sizes=metadata['kernel_sizes'],
-            strides=metadata.get('strides'),
-            dilation_rates=metadata.get('dilation_rates'),
-            l2_reg=metadata['l2_reg'],
-            dropout=metadata['dropout'],
-            decoder_n_hidden=metadata['decoder_n_hidden'],
-        )
-        compile_fn = compile_variational_model
-    else:
-        model = conv1d_densenet_regression_model(
-            alphabet_size=len(metadata['alphabet']),
-            growth_rate=metadata['growth_rate'],
-            n_layers=metadata['n_layers'],
-            kernel_sizes=metadata['kernel_sizes'],
-            strides=metadata.get('strides'),
-            dilation_rates=metadata.get('dilation_rates'),
-            l2_reg=metadata['l2_reg'],
-            dropout=metadata['dropout'],
-            masking=True,
-        )
-        compile_fn = compile_regression_model
-
-    compile_fn(model, learning_rate)
+    model = conv1d_densenet_regression_model(
+        alphabet_size=len(metadata['alphabet']),
+        growth_rate=metadata['growth_rate'],
+        n_layers=metadata['n_layers'],
+        kernel_sizes=metadata['kernel_sizes'],
+        strides=metadata.get('strides'),
+        dilation_rates=metadata.get('dilation_rates'),
+        l2_reg=metadata['l2_reg'],
+        dropout=metadata['dropout'],
+        masking=True,
+    )
+    compile_regression_model(model, learning_rate)
 
     if resume:
         logger.info(f'Resuming from {model_path}')
