@@ -149,10 +149,10 @@ def compute_aggregated_results(results_per_phylum, seen_domains, query_type, lab
         
         output_data[query_col].append(domain)
         output_data['label'].append(label)
-        output_data['score'].append(score)
-        output_data['score_random'].append(score_random)
-        output_data['metric'].append(metric)
-        output_data['metric_log10'].append(metric_log10)
+        output_data['score'].append(np.round(score, 6))
+        output_data['score_random'].append(np.round(score_random, 6))
+        output_data['metric'].append(np.round(metric, 6))
+        output_data['metric_log10'].append(np.round(metric_log10, 6))
         output_data['evidence'].append(evidence)
 
     output_df = pd.DataFrame.from_dict(output_data).set_index(query_col)
