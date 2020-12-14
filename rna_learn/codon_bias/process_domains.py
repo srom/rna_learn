@@ -119,11 +119,7 @@ def compute_aggregated_results(results_per_phylum, seen_domains, query_type, lab
         score = np.mean(np.exp(scores))
         score_random = np.mean(np.exp(scores_random))
 
-        metric = (
-            score / score_random 
-            if score_random > 0 
-            else score
-        )
+        metric = score / score_random
         metric_log10 = np.log10(metric) if metric > 0 else MIN_LOG_SCORE
 
         if metric_log10 <= 0:
@@ -228,9 +224,6 @@ def compute_actual_score(protein_domains):
     counts['assembly_score'] = counts['frequency_weight'].apply(
         lambda s: np.log10(s) if s > 0 else MIN_LOG_SCORE
     )
-    #counts['assembly_score'] = (
-    #    np.sqrt(counts['count_below']) * (counts['frequency_weight'] ** 2)
-    #)
     return counts
 
 
@@ -245,6 +238,11 @@ def compute_random_score(protein_domains, iterations=100, seed=444):
         n_below / (n_above + n_below),
     ]
 
+    all_counts = df[
+        ['pfam_query', 'pfam_accession']
+    ].groupby('pfam_query').count()
+    all_counts.columns = ['count_all']
+
     query_to_scores = collections.defaultdict(list)
     for _ in range(iterations):
         df['below_threshold'] = rs.choice(
@@ -253,11 +251,6 @@ def compute_random_score(protein_domains, iterations=100, seed=444):
             replace=True,
             p=probabilities,
         )
-
-        all_counts = df[
-            ['pfam_query', 'pfam_accession']
-        ].groupby('pfam_query').count()
-        all_counts.columns = ['count_all']
         
         below_threshold_counts = df[
             df['below_threshold']
@@ -278,9 +271,6 @@ def compute_random_score(protein_domains, iterations=100, seed=444):
         counts['assembly_score'] = counts['frequency_weight'].apply(
             lambda s: np.log10(s) if s > 0 else MIN_LOG_SCORE
         )
-        #counts['assembly_score'] = (
-        #    np.sqrt(counts['count_below']) * (counts['frequency_weight'] ** 2)
-        #)
 
         for query in counts.index:
             query_to_scores[query].append(
