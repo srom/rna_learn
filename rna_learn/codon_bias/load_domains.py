@@ -22,12 +22,19 @@ def main():
     parser.add_argument('--input_folder', type=str, default=None)
     parser.add_argument('--output_folder', type=str, default=None)
     parser.add_argument('--batch_size', type=int, default=int(1e4))
+    parser.add_argument(
+        '--method', 
+        type=str, 
+        choices=['codon_bias', 'tri_nucleotide_bias'], 
+        default='codon_bias',
+    )
     args = parser.parse_args()
 
     db_path = args.db_path
     input_folder = args.input_folder
     output_folder = args.output_folder
     batch_size = args.batch_size
+    method = args.method
 
     if db_path is None:
         db_path = os.path.join(os.getcwd(), 'data/db/seq.db')
@@ -36,7 +43,7 @@ def main():
         input_folder = os.path.join(os.getcwd(), 'data/Large_EBMC_Bact_DB')
 
     if output_folder is None:
-        output_folder = os.path.join(os.getcwd(), 'data/protein_domains')
+        output_folder = os.path.join(os.getcwd(), f'data/domains/{method}')
 
     engine = create_engine(f'sqlite+pysqlite:///{db_path}')
 
@@ -45,7 +52,7 @@ def main():
         engine,
     )['assembly_accession'].values)
 
-    process_batch = process_batch_fn(engine, known_assemblies, output_folder)
+    process_batch = process_batch_fn(engine, known_assemblies, output_folder, method)
 
     for batch_df in process_files(input_folder, known_assemblies, batch_size):
         process_batch(batch_df)
@@ -53,7 +60,7 @@ def main():
     logger.info('DONE')
 
 
-def process_batch_fn(engine, known_assemblies, output_folder):
+def process_batch_fn(engine, known_assemblies, output_folder, method):
     pfam_folder = os.path.join(output_folder, 'pfam')
     tigr_folder = os.path.join(output_folder, 'tigr')
 
@@ -72,7 +79,7 @@ def process_batch_fn(engine, known_assemblies, output_folder):
 
         for assembly_accession in matching_assemblies:
             if assembly_accession not in assembly_to_protein_ids:
-                all_protein_ids, top_protein_ids = load_protein_ids(assembly_accession)
+                all_protein_ids, top_protein_ids = load_protein_ids(assembly_accession, method)
 
                 assembly_to_protein_ids[assembly_accession] = all_protein_ids
                 assembly_to_top_protein_ids[assembly_accession] = set(top_protein_ids)
@@ -181,7 +188,14 @@ def process_files(folder, known_assemblies, batch_size, skiplines=4, n_cols=19):
     return
 
 
-def load_protein_ids(assembly_accession):
+def load_protein_ids(assembly_accession, method):
+    if method == 'codon_bias':
+        return load_codon_bias_protein_ids(assembly_accession)
+    else:
+        return load_tri_nucleotide_bias_protein_ids(assembly_accession)
+
+
+def load_codon_bias_protein_ids(assembly_accession):
     path_all = os.path.join(os.getcwd(), f'data/cds_codon_bias/all/{assembly_accession}_codon_bias.csv')
     path_below = os.path.join(os.getcwd(), f'data/cds_codon_bias/below_threshold/{assembly_accession}_codon_bias.csv')
     all_protein_ids = [
@@ -190,6 +204,26 @@ def load_protein_ids(assembly_accession):
     ]
     top_protein_ids = [
         p_id.strip() for p_id in pd.read_csv(path_below)['protein_id'].unique()
+        if not pd.isnull(p_id)
+    ]
+    return all_protein_ids, top_protein_ids
+
+
+def load_tri_nucleotide_bias_protein_ids(assembly_accession):
+    path = os.path.join(
+        os.getcwd(), 
+        f'data/cds_tri_nucleotide/{assembly_accession}_bias.csv',
+    )
+    df = pd.read_csv(path)
+
+    all_protein_ids = [
+        p_id.strip()
+        for p_id in df['protein_id'].unique()
+        if not pd.isnull(p_id)
+    ]
+    top_protein_ids = [
+        p_id.strip()
+        for p_id in df[df['below_threshold']]['protein_id'].unique()
         if not pd.isnull(p_id)
     ]
     return all_protein_ids, top_protein_ids
