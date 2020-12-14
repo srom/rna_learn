@@ -8,7 +8,6 @@ import pathlib
 
 import pandas as pd
 import numpy as np
-from scipy.stats import percentileofscore
 from sqlalchemy import create_engine
 
 
