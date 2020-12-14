@@ -67,7 +67,12 @@ def main():
     for i, phylum in enumerate(phyla):
         logger.info(f'Processing phylum {i+1} / {len(phyla)}: {phylum}')
         phylum_assemblies = phylum_to_assemblies[phylum]
-        phylum_df = compute_protein_domain_scores(engine, phylum_assemblies, query_type, method)
+        phylum_df = compute_protein_domain_scores(
+            engine, 
+            phylum_assemblies, 
+            query_type, 
+            method,
+        )
 
         phylum_labels = [labels[k] for k in phylum_df.index]
         phylum_df['label'] = phylum_labels
@@ -83,7 +88,12 @@ def main():
 
     logger.info('Computing aggregated results')
 
-    output_df = compute_aggregated_results(results_per_phylum, seen_domains, query_type, labels)
+    output_df = compute_aggregated_results(
+        results_per_phylum, 
+        seen_domains,
+        query_type, 
+        labels,
+    )
 
     output_path = os.path.join(os.getcwd(), f'data/domains/{method}/{query_type}.xlsx')
     output_df.to_excel(output_path)
@@ -172,7 +182,9 @@ def compute_protein_domain_scores(engine, assemblies, query_type, method):
         
         for pfam_query in scores_df.index:
             domain_to_score[pfam_query] += scores_df.loc[pfam_query, 'assembly_score']
-            domain_to_score_random[pfam_query] += scores_df_random.loc[pfam_query, 'assembly_score']
+            domain_to_score_random[pfam_query] += (
+                scores_df_random.loc[pfam_query, 'assembly_score']
+            )
             domain_count[pfam_query] += scores_df.loc[pfam_query, 'count_all']
             if scores_df.loc[pfam_query, 'count_below'] > 0:
                 domain_count_top[pfam_query] += scores_df.loc[pfam_query, 'count_below']
@@ -336,18 +348,29 @@ def check_protein_matching(engine, assemblies, query_type, method):
         protein_domains = pd.read_csv(protein_domains_path)
         
         protein_query = """
-        select metadata_json from sequences where sequence_type = 'CDS' and assembly_accession = ?
+        select metadata_json from sequences 
+        where sequence_type = 'CDS' and assembly_accession = ?
         """
         cds_metadata_df = pd.read_sql(protein_query, engine, params=(assembly,))
-        metadata = [json.loads(v) for v in cds_metadata_df['metadata_json'].values if not pd.isnull(v)]
+        metadata = [
+            json.loads(v) 
+            for v in cds_metadata_df['metadata_json'].values 
+            if not pd.isnull(v)
+        ]
         
         cds_protein_ids = {
             m['protein_id'].strip() for m in metadata
             if m.get('protein_id') is not None
         }
-        query_protein_ids = set([p.strip() for p in protein_domains['protein_id'].values if not pd.isnull(p)])
+        query_protein_ids = set([
+            p.strip() 
+            for p in protein_domains['protein_id'].values 
+            if not pd.isnull(p)
+        ])
         
-        matching_score = 100 * len(cds_protein_ids & query_protein_ids) / len(query_protein_ids)
+        matching_score = 100 * (
+            len(cds_protein_ids & query_protein_ids) / len(query_protein_ids)
+        )
         matching_scores[assembly] = matching_score
         
     return matching_scores
