@@ -14,6 +14,10 @@ from sqlalchemy import create_engine
 
 logger = logging.getLogger(__name__)
 
+# Placeholder value when taking the log10 of 0 values.
+# It is a way to avoid having to deal with −∞ values.
+# This value is many time smaller than anything that would
+# occur given in our dataset.
 MIN_LOG_SCORE = -10
 
 
