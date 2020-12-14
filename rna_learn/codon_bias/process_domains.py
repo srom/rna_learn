@@ -247,8 +247,9 @@ def compute_random_score(protein_domains, iterations=100, seed=444):
     rs = np.random.RandomState(seed)
     df = protein_domains.copy()
 
-    n_below = len(df[df['below_threshold']])
-    n_above = len(df[~df['below_threshold']])
+    below_threshold_filter = df['below_threshold']
+    n_below = len(df[below_threshold_filter])
+    n_above = len(df[~below_threshold_filter])
     probabilities = [
         n_above / (n_above + n_below),
         n_below / (n_above + n_below),
@@ -419,21 +420,6 @@ def compute_query_to_most_common_label(assemblies, query_type, method):
         query_to_most_common_label[query] = sorted_labels[0][0]
         
     return query_to_most_common_label
-
-
-def expression_score_fn(trnai):
-    mean = trnai['adaptation_index'].mean()
-    std = trnai['adaptation_index'].std()
-    
-    def fn(adaptation_index):
-        if adaptation_index > mean + std:
-            return 'over expressed'
-        elif adaptation_index < mean - std:
-            return 'under expressed'
-        else:
-            return 'normally expressed'
-    
-    return fn
 
 
 if __name__ == '__main__':
